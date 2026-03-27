@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bloom — Collaborative Playlist</title>
+    <style>
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+        :root{
+            --rose:#f4a0b0;--rose-light:#fde8ed;--rose-deep:#d95c74;
+            --blush:#fdf0f3;--cream:#fefaf7;--petal:#f9e4ec;--lavender:#ede6f7;
+            --text-dark:#2d1a22;--text-mid:#7a4a5c;--text-soft:#c09aaa;
+            --glass:rgba(255,255,255,0.72);--glass-border:rgba(244,160,176,0.35);
+            --green:#1DB954;
+        }
+        body{font-family:'Georgia',serif;background:var(--blush);color:var(--text-dark);min-height:100vh;overflow-x:hidden;}
+        body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 20% 10%,rgba(244,160,176,0.22) 0%,transparent 55%),radial-gradient(ellipse at 80% 80%,rgba(237,230,247,0.28) 0%,transparent 55%),radial-gradient(ellipse at 60% 30%,rgba(249,228,236,0.18) 0%,transparent 45%);pointer-events:none;z-index:0;}
+
+        /* typography */
+        .font-serif{font-family:'Georgia',serif;}
+        .font-sans{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
+
+        /* layout */
+        .app{max-width:480px;margin:0 auto;padding:24px 16px 110px;position:relative;z-index:1;}
+
+        /* header */
+        .header{display:flex;align-items:center;justify-content:space-between;margin-bottom:26px;animation:fadeUp .5s ease both;}
+        .logo{font-size:28px;font-weight:700;letter-spacing:-.5px;color:var(--text-dark);}
+        .logo span{font-size:22px;margin-left:4px;}
+        .logo-sub{font-size:11px;color:var(--text-soft);margin-top:1px;letter-spacing:.5px;font-family:-apple-system,sans-serif;}
+        .header-right{display:flex;gap:10px;align-items:center;}
+        .spotify-badge{display:flex;align-items:center;gap:6px;background:rgba(29,185,84,.1);border:1px solid rgba(29,185,84,.25);border-radius:20px;padding:6px 12px;font-family:-apple-system,sans-serif;font-size:12px;color:var(--green);font-weight:500;}
+        .dot-pulse{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;}
+        .icon-btn{background:var(--glass);backdrop-filter:blur(12px);border:1.5px solid var(--glass-border);border-radius:14px;width:42px;height:42px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:17px;transition:all .2s;color:var(--rose-deep);}
+        .icon-btn:hover{background:var(--rose-light);}
+
+        /* now playing */
+        .now-playing{background:linear-gradient(135deg,var(--rose-light) 0%,var(--lavender) 100%);border-radius:22px;padding:18px 20px;margin-bottom:22px;border:1px solid var(--glass-border);position:relative;overflow:hidden;animation:fadeUp .5s .1s both;}
+        .np-glow{position:absolute;top:-40px;right:-40px;width:140px;height:140px;border-radius:50%;background:rgba(244,160,176,.18);pointer-events:none;}
+        .np-inner{display:flex;align-items:center;gap:14px;position:relative;}
+        .np-art{width:62px;height:62px;border-radius:14px;object-fit:cover;flex-shrink:0;border:2px solid rgba(255,255,255,.7);background:linear-gradient(135deg,var(--rose),var(--rose-deep));}
+        .np-art-placeholder{width:62px;height:62px;border-radius:14px;flex-shrink:0;background:linear-gradient(135deg,var(--rose),var(--rose-deep));display:flex;align-items:center;justify-content:center;font-size:24px;border:2px solid rgba(255,255,255,.7);}
+        .np-label{font-size:10px;font-weight:600;letter-spacing:1.8px;text-transform:uppercase;color:var(--rose-deep);background:rgba(224,96,122,.1);padding:2px 8px;border-radius:20px;display:inline-block;margin-bottom:5px;font-family:-apple-system,sans-serif;}
+        .np-title{font-size:17px;font-weight:700;color:var(--text-dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+        .np-artist{font-size:12px;color:var(--text-mid);margin-top:2px;font-family:-apple-system,sans-serif;}
+        .eq-bars{display:flex;align-items:flex-end;gap:3px;height:22px;flex-shrink:0;}
+        .eq-bar{width:4px;border-radius:3px;background:var(--rose-deep);}
+        .np-progress{margin-top:14px;position:relative;}
+        .progress-track{height:4px;background:rgba(224,96,122,.15);border-radius:4px;overflow:hidden;}
+        .progress-fill{height:100%;background:linear-gradient(90deg,var(--rose),var(--rose-deep));border-radius:4px;}
+        .progress-times{display:flex;justify-content:space-between;margin-top:5px;font-size:11px;color:var(--text-soft);font-family:-apple-system,sans-serif;}
+
+        /* queue section */
+        .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+        .section-title{font-size:18px;font-weight:700;color:var(--text-dark);}
+        .section-hint{font-size:11px;color:var(--text-soft);font-family:-apple-system,sans-serif;font-style:italic;}
+
+        /* song card */
+        .song-card{display:flex;align-items:center;gap:12px;background:var(--glass);backdrop-filter:blur(10px);border-radius:16px;padding:11px 14px;border:1px solid var(--glass-border);transition:transform .2s,box-shadow .2s;cursor:default;margin-bottom:10px;}
+        .song-card:hover{transform:translateX(4px);box-shadow:0 6px 24px rgba(244,160,176,.22);}
+        .song-card.top{background:linear-gradient(135deg,var(--rose-light),var(--petal));border-color:rgba(224,96,122,.22);box-shadow:0 4px 20px rgba(224,96,122,.12);}
+        .song-rank{font-size:12px;font-weight:600;color:var(--text-soft);min-width:18px;text-align:center;font-family:-apple-system,sans-serif;}
+        .song-art{width:46px;height:46px;border-radius:10px;object-fit:cover;flex-shrink:0;background:linear-gradient(135deg,var(--rose),var(--lavender));}
+        .song-art-ph{width:46px;height:46px;border-radius:10px;flex-shrink:0;background:linear-gradient(135deg,var(--rose),var(--lavender));display:flex;align-items:center;justify-content:center;font-size:18px;}
+        .song-info{flex:1;min-width:0;}
+        .song-title{font-size:14px;font-weight:600;color:var(--text-dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+        .song-meta{font-size:11px;color:var(--text-soft);margin-top:2px;font-family:-apple-system,sans-serif;}
+        .vote-col{display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0;}
+        .vote-btn{width:32px;height:32px;border-radius:50%;border:1.5px solid rgba(244,160,176,.5);background:transparent;cursor:pointer;font-size:15px;color:var(--rose-deep);transition:all .2s;display:flex;align-items:center;justify-content:center;}
+        .vote-btn:hover{background:var(--rose-light);}
+        .vote-btn.voted{background:var(--rose);border-color:var(--rose);color:#fff;}
+        .vote-count{font-size:11px;font-weight:600;color:var(--rose-deep);font-family:-apple-system,sans-serif;}
+        .remove-btn{width:30px;height:30px;border-radius:50%;border:1.5px solid rgba(122,74,92,.22);background:transparent;cursor:pointer;font-size:20px;line-height:1;color:var(--text-soft);transition:all .2s;display:flex;align-items:center;justify-content:center;padding:0;flex-shrink:0;font-family:-apple-system,sans-serif;}
+        .remove-btn:hover{background:rgba(224,96,122,.12);color:var(--rose-deep);border-color:rgba(224,96,122,.35);}
+
+        /* FABs */
+        .fab-qr{position:fixed;bottom:24px;left:24px;z-index:50;background:var(--glass);backdrop-filter:blur(16px);border:1.5px solid var(--glass-border);border-radius:18px;padding:11px 18px;cursor:pointer;display:flex;align-items:center;gap:8px;box-shadow:0 4px 24px rgba(244,160,176,.25);transition:all .2s;font-family:-apple-system,sans-serif;font-size:12px;font-weight:500;color:var(--text-mid);}
+        .fab-qr:hover{box-shadow:0 8px 32px rgba(244,160,176,.4);}
+        .fab-add{position:fixed;bottom:24px;right:24px;z-index:50;background:linear-gradient(135deg,var(--rose),var(--rose-deep));border:none;border-radius:20px;padding:14px 24px;cursor:pointer;display:flex;align-items:center;gap:8px;color:#fff;font-family:-apple-system,sans-serif;font-weight:600;font-size:14px;box-shadow:0 8px 28px rgba(212,90,110,.38);transition:all .2s;}
+        .fab-add:hover{transform:scale(1.04);}
+
+        /* modal overlay */
+        .overlay{position:fixed;inset:0;background:rgba(45,26,34,.45);backdrop-filter:blur(8px);z-index:100;display:flex;align-items:center;justify-content:center;animation:fadeIn .25s ease;}
+        .modal-card{background:var(--cream);border-radius:28px;padding:36px;max-width:320px;width:90%;box-shadow:0 24px 64px rgba(45,26,34,.18);border:1px solid var(--glass-border);text-align:center;animation:popIn .3s ease;}
+        .modal-title{font-size:22px;font-weight:700;color:var(--text-dark);margin-bottom:6px;}
+        .modal-sub{font-size:13px;color:var(--text-soft);line-height:1.6;font-family:-apple-system,sans-serif;margin-bottom:22px;}
+
+        /* bottom sheet */
+        .sheet-overlay{position:fixed;inset:0;background:rgba(45,26,34,.45);backdrop-filter:blur(8px);z-index:100;display:flex;align-items:flex-end;justify-content:center;animation:fadeIn .25s ease;}
+        .sheet{background:var(--cream);border-radius:28px 28px 0 0;padding:24px;width:100%;max-width:500px;box-shadow:0 -16px 48px rgba(45,26,34,.15);animation:slideUp .3s ease;padding-bottom:36px;}
+        .sheet-handle{width:40px;height:4px;background:rgba(244,160,176,.4);border-radius:4px;margin:0 auto 20px;}
+        .sheet-title{font-size:20px;font-weight:700;color:var(--text-dark);margin-bottom:16px;}
+        .search-wrap{position:relative;margin-bottom:14px;}
+        .search-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-soft);font-size:15px;}
+        .search-input{width:100%;padding:12px 14px 12px 40px;border:1.5px solid var(--glass-border);border-radius:14px;font-family:-apple-system,sans-serif;font-size:14px;background:var(--blush);color:var(--text-dark);outline:none;transition:border-color .2s;}
+        .search-input:focus{border-color:var(--rose);}
+        .results-list{display:flex;flex-direction:column;gap:8px;max-height:300px;overflow-y:auto;}
+        .result-item{display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--blush);border-radius:14px;cursor:pointer;border:1px solid var(--glass-border);transition:background .2s;}
+        .result-item:hover{background:var(--rose-light);}
+        .result-item.added-flash{background:linear-gradient(135deg,var(--rose-light),var(--petal));}
+        .result-art{width:42px;height:42px;border-radius:8px;flex-shrink:0;background:linear-gradient(135deg,var(--rose),var(--lavender));display:flex;align-items:center;justify-content:center;font-size:16px;}
+        .result-title{font-size:14px;font-weight:600;color:var(--text-dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+        .result-artist{font-size:12px;color:var(--text-soft);font-family:-apple-system,sans-serif;}
+        .result-dur{font-size:12px;color:var(--text-soft);flex-shrink:0;font-family:-apple-system,sans-serif;}
+
+        /* QR container */
+        .qr-box{display:inline-block;padding:14px;background:var(--blush);border-radius:16px;margin-bottom:18px;border:1px solid var(--glass-border);}
+        .qr-box canvas{display:block;border-radius:12px;max-width:100%;height:auto;}
+        .qr-fallback{font-size:12px;color:var(--text-soft);font-family:-apple-system,sans-serif;padding:12px;}
+
+        /* connect button */
+        .spotify-connect{background:var(--green);color:#fff;border:none;border-radius:32px;padding:13px 28px;font-family:-apple-system,sans-serif;font-weight:600;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:10px;box-shadow:0 4px 18px rgba(29,185,84,.32);transition:transform .15s;margin:0 auto 8px;}
+        .spotify-connect:hover{transform:scale(1.03);}
+        .spotify-note{font-size:11px;color:var(--text-soft);font-family:-apple-system,sans-serif;font-style:italic;}
+
+        /* close btn */
+        .close-btn{background:var(--rose);color:#fff;border:none;border-radius:20px;padding:10px 28px;font-family:-apple-system,sans-serif;font-weight:600;font-size:13px;cursor:pointer;transition:all .2s;}
+        .close-btn:hover{background:var(--rose-deep);}
+
+        /* toast */
+        .toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:200;background:linear-gradient(135deg,var(--rose),var(--rose-deep));color:#fff;border-radius:20px;padding:10px 22px;font-size:13px;font-weight:500;box-shadow:0 8px 28px rgba(212,90,110,.38);animation:popIn .3s ease;white-space:nowrap;font-family:-apple-system,sans-serif;}
+
+        /* empty state */
+        .empty{text-align:center;padding:40px 20px;color:var(--text-soft);font-family:-apple-system,sans-serif;font-size:14px;}
+
+        /* spotify connect banner */
+        .connect-banner{background:var(--glass);backdrop-filter:blur(10px);border:1.5px dashed var(--glass-border);border-radius:16px;padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;animation:fadeUp .5s .2s both;}
+        .connect-text{font-size:13px;color:var(--text-mid);font-family:-apple-system,sans-serif;line-height:1.5;}
+        .connect-text strong{color:var(--text-dark);}
+
+        /* animations */
+        @keyframes fadeUp{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:translateY(0);}}
+        @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+        @keyframes popIn{from{opacity:0;transform:scale(.92);}to{opacity:1;transform:scale(1);}}
+        @keyframes slideUp{from{opacity:0;transform:translateY(40px);}to{opacity:1;transform:translateY(0);}}
+        @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.5;}}
+        @keyframes eq1{0%,100%{height:6px;}50%{height:18px;}}
+        @keyframes eq2{0%,100%{height:12px;}50%{height:6px;}}
+        @keyframes eq3{0%,100%{height:8px;}50%{height:16px;}}
+        @keyframes eq4{0%,100%{height:16px;}50%{height:8px;}}
+        @keyframes eq5{0%,100%{height:10px;}50%{height:20px;}}
+        @keyframes cardIn{from{opacity:0;transform:translateX(-8px);}to{opacity:1;transform:translateX(0);}}
+        .eq-bars.np-paused .eq-bar{animation-play-state:paused;opacity:.45;}
+    </style>
+</head>
+<body>
+
+<div class="app" id="app">
+
+    <!-- HEADER -->
+    <div class="header">
+        <div>
+            <div class="logo font-serif">Bloom <span>🌸</span></div>
+            <div class="logo-sub font-sans">collaborative playlist</div>
+        </div>
+        <div class="header-right" id="headerRight">
+            <!-- injected by JS -->
+        </div>
+    </div>
+
+    <!-- NOW PLAYING -->
+    <div class="now-playing" id="nowPlaying">
+        <div class="np-glow"></div>
+        <div class="np-inner">
+            <div class="np-art-placeholder" id="npArtPh" style="display:none;" aria-hidden="true">🎵</div>
+            <img class="np-art" id="npArt" src="https://i.scdn.co/image/ab67616d0000b2737fd8b0ca78c0c7a44dbcbe04" alt="album art" onerror="this.style.display='none';var p=document.getElementById('npArtPh');if(p)p.style.display='flex'" />
+            <div style="flex:1;min-width:0;">
+                <div class="np-label font-sans" id="npLabel">Now Playing</div>
+                <div class="np-title font-serif" id="npTitle">Von Dutch</div>
+                <div class="np-artist font-sans" id="npArtist">Charli XCX · Brat</div>
+            </div>
+            <div class="eq-bars" id="npEqBars">
+                <div class="eq-bar" style="animation:eq1 .7s ease-in-out infinite;"></div>
+                <div class="eq-bar" style="animation:eq2 .6s ease-in-out infinite;"></div>
+                <div class="eq-bar" style="animation:eq3 .8s ease-in-out infinite;"></div>
+                <div class="eq-bar" style="animation:eq4 .65s ease-in-out infinite;"></div>
+                <div class="eq-bar" style="animation:eq5 .75s ease-in-out infinite;"></div>
+            </div>
+        </div>
+        <div class="np-progress">
+            <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:42%;"></div></div>
+            <div class="progress-times"><span id="progressTime">1:14</span><span id="progressTotal">2:50</span></div>
+        </div>
+    </div>
+
+    <!-- SPOTIFY CONNECT BANNER -->
+    <div class="connect-banner" id="connectBanner">
+        <div class="connect-text"><strong>Connect Spotify</strong><br>to add songs to your real queue</div>
+        <button class="spotify-connect font-sans" style="margin:0;padding:10px 18px;font-size:13px;" onclick="connectSpotify()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
+            Connect
+        </button>
+    </div>
+
+    <!-- QUEUE -->
+    <div class="section-header">
+        <div class="section-title font-serif">Up Next <span id="queueCount" style="font-size:13px;font-weight:400;font-family:-apple-system,sans-serif;color:var(--text-soft);margin-left:4px;"></span></div>
+        <div class="section-hint" id="queueSectionHint">sorted by votes ♥</div>
+    </div>
+    <div id="queue"></div>
+
+</div>
+
+<!-- FABs -->
+<button class="fab-qr font-sans" onclick="openQR()">
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--rose-deep)" stroke-width="2.2" stroke-linecap="round">
+        <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/>
+        <rect x="14" y="14" width="2.5" height="2.5" rx=".5" fill="var(--rose-deep)" stroke="none"/>
+        <rect x="18.5" y="14" width="2.5" height="2.5" rx=".5" fill="var(--rose-deep)" stroke="none"/>
+        <rect x="14" y="18.5" width="2.5" height="2.5" rx=".5" fill="var(--rose-deep)" stroke="none"/>
+        <rect x="18.5" y="18.5" width="2.5" height="2.5" rx=".5" fill="var(--rose-deep)" stroke="none"/>
+    </svg>
+    Invite Friends
+</button>
+<button class="fab-add font-sans" onclick="openAdd()">
+    <span style="font-size:20px;line-height:1;">+</span>
+    Add Song
+</button>
+
+<!-- MODALS injected by JS -->
+<div id="modals"></div>
+
+<script>
+    // ── State ──────────────────────────────────────────────
+    let spotifyToken = null;
+    let toastTimer = null;
+
+    const CLIENT_ID = 'd3867244b6a646c490301a91fa564c11'; // replace with yours
+    const REDIRECT = window.location.href.split('?')[0].split('#')[0];
+    const SCOPES = 'user-read-playback-state user-modify-playback-state user-read-currently-playing';
+
+    function generateRandomString(len) {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        let s = '';
+        for (let i = 0; i < len; i++) s += chars.charAt(Math.floor(Math.random() * chars.length));
+        return s;
+    }
+    async function sha256base64url(plain) {
+        const data = new TextEncoder().encode(plain);
+        const hash = await crypto.subtle.digest('SHA-256', data);
+        return btoa(String.fromCharCode(...new Uint8Array(hash)))
+            .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+    function cleanOAuthUrl() {
+        try {
+            const u = new URL(window.location.href);
+            u.search = '';
+            u.hash = '';
+            window.history.replaceState({}, '', u.pathname + u.search);
+        } catch (e) {
+            window.history.replaceState({}, '', window.location.pathname);
+        }
+    }
+    async function handleOAuthCallback() {
+        const params = new URLSearchParams(window.location.search);
+        const err = params.get('error');
+        if (err) {
+            toast(decodeURIComponent(params.get('error_description') || err).replace(/\+/g, ' '));
+            cleanOAuthUrl();
+            return;
+        }
+        const code = params.get('code');
+        if (!code) return;
+        const state = params.get('state');
+        if (state !== sessionStorage.getItem('spotify_oauth_state')) {
+            toast('Login session expired — tap Connect again');
+            cleanOAuthUrl();
+            return;
+        }
+        const verifier = sessionStorage.getItem('spotify_pkce_verifier');
+        const id = sessionStorage.getItem('spotify_client_id') || window._clientId || CLIENT_ID;
+        if (!verifier || !id) {
+            toast('Missing login data — try Connect again');
+            cleanOAuthUrl();
+            return;
+        }
+        const body = new URLSearchParams({
+            grant_type: 'authorization_code',
+            code: code,
+            redirect_uri: REDIRECT,
+            client_id: id,
+            code_verifier: verifier,
+        });
+        let res;
+        try {
+            res = await fetch('https://accounts.spotify.com/api/token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body,
+            });
+        } catch (e) {
+            toast('Network error reaching Spotify');
+            cleanOAuthUrl();
+            return;
+        }
+        const data = await res.json().catch(() => ({}));
+        sessionStorage.removeItem('spotify_pkce_verifier');
+        sessionStorage.removeItem('spotify_oauth_state');
+        cleanOAuthUrl();
+        if (!res.ok) {
+            toast(data.error_description || data.error || 'Spotify login failed');
+            return;
+        }
+        spotifyToken = data.access_token;
+        sessionStorage.setItem('spotify_access_token', spotifyToken);
+        if (data.refresh_token) sessionStorage.setItem('spotify_refresh_token', data.refresh_token);
+    }
+    async function refreshSpotifyToken() {
+        const rt = sessionStorage.getItem('spotify_refresh_token');
+        const id = sessionStorage.getItem('spotify_client_id') || window._clientId || CLIENT_ID;
+        if (!rt || !id) return false;
+        const body = new URLSearchParams({
+            grant_type: 'refresh_token',
+            refresh_token: rt,
+            client_id: id,
+        });
+        const res = await fetch('https://accounts.spotify.com/api/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body,
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) return false;
+        spotifyToken = data.access_token;
+        sessionStorage.setItem('spotify_access_token', spotifyToken);
+        if (data.refresh_token) sessionStorage.setItem('spotify_refresh_token', data.refresh_token);
+        return true;
+    }
+    async function spotifyApiFetch(url, opts) {
+        if (!spotifyToken) return fetch(url, opts);
+        const headers = Object.assign({}, opts && opts.headers, { Authorization: 'Bearer ' + spotifyToken });
+        let r = await fetch(url, Object.assign({}, opts, { headers }));
+        if (r.status === 401 && await refreshSpotifyToken()) {
+            headers.Authorization = 'Bearer ' + spotifyToken;
+            r = await fetch(url, Object.assign({}, opts, { headers }));
+        }
+        return r;
+    }
+    async function connectSpotifyWithId(id) {
+        if (!window.crypto || !window.crypto.subtle) {
+            toast('Open this page over https:// or http://localhost — Spotify login needs a secure context');
+            return;
+        }
+        const verifier = generateRandomString(64);
+        sessionStorage.setItem('spotify_pkce_verifier', verifier);
+        const challenge = await sha256base64url(verifier);
+        const state = generateRandomString(16);
+        sessionStorage.setItem('spotify_oauth_state', state);
+        const q = new URLSearchParams({
+            response_type: 'code',
+            client_id: id,
+            scope: SCOPES,
+            redirect_uri: REDIRECT,
+            state: state,
+            code_challenge_method: 'S256',
+            code_challenge: challenge,
+        });
+        window.location.href = 'https://accounts.spotify.com/authorize?' + q.toString();
+    }
+
+    const DEMO_SONGS = [
+        {id:'s1',title:'Espresso',artist:'Sabrina Carpenter',album:"Short n' Sweet",dur:'2:56',art:'https://i.scdn.co/image/ab67616d0000b2730f8f4bff78a98d0ffbc0ea7f',votes:12,by:'@sophie',uri:'spotify:track:2qSkIjg1o9h3YT9RAgYN75'},
+        {id:'s2',title:'Good Luck, Babe!',artist:'Chappell Roan',album:'Single',dur:'3:38',art:'https://i.scdn.co/image/ab67616d0000b2730b0e6e5c7fe50fed39706be8',votes:14,by:'@nova',uri:'spotify:track:0WbMK4wrZ1wFSty9F7FCgu'},
+        {id:'s3',title:'Pink Pony Club',artist:'Chappell Roan',album:'The Rise and Fall...',dur:'4:49',art:'https://i.scdn.co/image/ab67616d0000b273af7b573e1d1d3e5a54c7c028',votes:8,by:'@mia',uri:'spotify:track:2F4I408gGWU9YGmCZJBnmS'},
+        {id:'s4',title:'Feather',artist:'Sabrina Carpenter',album:"emails i can't send",dur:'2:36',art:'https://i.scdn.co/image/ab67616d0000b2736dc85e8bba6f28e88c5d2fb8',votes:5,by:'@luna',uri:'spotify:track:2pNHmjIFWjJbNcGYLwgSjO'},
+        {id:'s5',title:"Woman's World",artist:'Katy Perry',album:"Woman's World",dur:'3:04',art:'https://i.scdn.co/image/ab67616d0000b2732c5b24ecfa39523a75c993b2',votes:3,by:'@cleo',uri:'spotify:track:3lPr8ghNDBLc2uZovNyEed'},
+    ];
+
+    const SEARCH_DEMOS = [
+        {id:'d1',title:'Shake It Off',artist:'Taylor Swift',dur:'3:39',art:'https://i.scdn.co/image/ab67616d0000b273318443aab3531a0558e79a4d',uri:'spotify:track:0cqRj7pUJDkTCEsJkx8snD'},
+        {id:'d2',title:'Levitating',artist:'Dua Lipa',dur:'3:23',art:'https://i.scdn.co/image/ab67616d0000b273bd26ede1ae69327010d49946',uri:'spotify:track:463CkQjx2Zfoiqf0FxBgTX'},
+        {id:'d3',title:'Watermelon Sugar',artist:'Harry Styles',dur:'2:54',art:'https://i.scdn.co/image/ab67616d0000b273e2e352d89826aef6dbd5ff8f',uri:'spotify:track:6UelLqGlWMcVH1E5c4H7lY'},
+        {id:'d4',title:'drivers license',artist:'Olivia Rodrigo',dur:'4:02',art:'https://i.scdn.co/image/ab67616d0000b273a91c10fe9472d9bd89802e5a',uri:'spotify:track:5wANPM4fQCJwkW6AIhigZT'},
+        {id:'d5',title:'Cruel Summer',artist:'Taylor Swift',dur:'2:58',art:'https://i.scdn.co/image/ab67616d0000b273e787cffec20aa2a396a61647',uri:'spotify:track:1BxfuPKGuaTgP7aM0Bbdwr'},
+        {id:'d6',title:'As It Was',artist:'Harry Styles',dur:'2:37',art:'https://i.scdn.co/image/ab67616d0000b27347cde31b37d9955e33ac15cb',uri:'spotify:track:4LRPiXqCikLlN15c3yImP7'},
+    ];
+
+    let songs = DEMO_SONGS.map(s=>({...s}));
+    let votedIds = new Set();
+    let spotifyQueueList = [];
+    let lastSpotifyQueueSig = '';
+    let nowPlayingTrackUri = null;
+    let bloomHiddenQueueUris = new Set();
+
+    function loadBloomHiddenQueueUris(){
+        try{
+            const arr = JSON.parse(sessionStorage.getItem('bloom_spotify_queue_hidden') || '[]');
+            bloomHiddenQueueUris = new Set(Array.isArray(arr) ? arr.filter(Boolean) : []);
+        } catch(e){ bloomHiddenQueueUris = new Set(); }
+    }
+    function saveBloomHiddenQueueUris(){
+        sessionStorage.setItem('bloom_spotify_queue_hidden', JSON.stringify([...bloomHiddenQueueUris]));
+    }
+    function pruneBloomHiddenQueueUris(apiList){
+        const inApi = new Set(apiList.map(x => x.uri));
+        let changed = false;
+        for(const u of [...bloomHiddenQueueUris]){
+            if(!inApi.has(u)){
+                bloomHiddenQueueUris.delete(u);
+                changed = true;
+            }
+        }
+        if(changed) saveBloomHiddenQueueUris();
+    }
+    function spotifyVisibleQueue(){
+        return spotifyQueueList.filter(x => !bloomHiddenQueueUris.has(x.uri));
+    }
+    function spotifyQueuePaintSig(){
+        const vis = spotifyVisibleQueue();
+        const apiSig = spotifyQueueSignature(spotifyQueueList);
+        const hid = [...bloomHiddenQueueUris].sort().join('\x1e');
+        if(spotifyQueueList.length === 0) return 'E::' + hid;
+        return apiSig + '::' + hid + '::' + spotifyQueueSignature(vis);
+    }
+    function removeSpotifyQueueRow(uri){
+        if(!uri || !spotifyToken) return;
+        bloomHiddenQueueUris.add(uri);
+        saveBloomHiddenQueueUris();
+        renderQueue();
+        toast('Removed here. Spotify may still play it — remove it in the Spotify app if you need it gone for good.');
+    }
+
+    let npPollTimer = null;
+    let npTickTimer = null;
+    let demoNpTimer = null;
+    let npLast = null;
+
+    const DEMO_NP = {
+        title:'Von Dutch',
+        artist:'Charli XCX · Brat',
+        art:'https://i.scdn.co/image/ab67616d0000b2737fd8b0ca78c0c7a44dbcbe04',
+        progressMs:74000,
+        durationMs:170000,
+    };
+
+    async function connectSpotify(){
+        const id = sessionStorage.getItem('spotify_client_id') || window._clientId || CLIENT_ID;
+        if(!id || id === 'YOUR_SPOTIFY_CLIENT_ID'){ showSetupModal(); return; }
+        await connectSpotifyWithId(id);
+    }
+
+    function showSetupModal(){
+        const pageUrl = window.location.href.split('?')[0].split('#')[0];
+        document.getElementById('modals').innerHTML = `
+    <div class="overlay" onclick="closeIfBackdrop(event,'setup-overlay')" id="setup-overlay">
+      <div class="modal-card" style="max-width:370px;text-align:left;">
+        <div style="font-size:26px;margin-bottom:8px;">🎵</div>
+        <div class="modal-title font-serif" style="text-align:left;margin-bottom:6px;">Connect Spotify</div>
+        <p style="font-size:13px;color:var(--text-soft);font-family:-apple-system,sans-serif;line-height:1.7;margin-bottom:16px;">Needs a free Spotify Developer Client ID. Takes 2 min:</p>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:18px;">
+          <div style="display:flex;gap:11px;align-items:flex-start;">
+            <div style="width:22px;height:22px;border-radius:50%;background:var(--rose-light);border:1.5px solid var(--rose);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--rose-deep);flex-shrink:0;font-family:-apple-system,sans-serif;">1</div>
+            <div style="font-size:13px;color:var(--text-mid);font-family:-apple-system,sans-serif;line-height:1.6;">Go to <a href="https://developer.spotify.com/dashboard" target="_blank" style="color:var(--rose-deep);font-weight:600;">developer.spotify.com/dashboard</a> and log in</div>
+          </div>
+          <div style="display:flex;gap:11px;align-items:flex-start;">
+            <div style="width:22px;height:22px;border-radius:50%;background:var(--rose-light);border:1.5px solid var(--rose);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--rose-deep);flex-shrink:0;font-family:-apple-system,sans-serif;">2</div>
+            <div style="font-size:13px;color:var(--text-mid);font-family:-apple-system,sans-serif;line-height:1.6;">Click <strong style="color:var(--text-dark);">Create App</strong> — name it anything you like</div>
+          </div>
+          <div style="display:flex;gap:11px;align-items:flex-start;">
+            <div style="width:22px;height:22px;border-radius:50%;background:var(--rose-light);border:1.5px solid var(--rose);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--rose-deep);flex-shrink:0;font-family:-apple-system,sans-serif;">3</div>
+            <div style="font-size:13px;color:var(--text-mid);font-family:-apple-system,sans-serif;line-height:1.6;">Under <strong style="color:var(--text-dark);">Redirect URIs</strong> add exactly:<br><code style="background:var(--blush);padding:3px 7px;border-radius:6px;font-size:11px;color:var(--rose-deep);word-break:break-all;">${pageUrl}</code></div>
+          </div>
+          <div style="display:flex;gap:11px;align-items:flex-start;">
+            <div style="width:22px;height:22px;border-radius:50%;background:var(--rose-light);border:1.5px solid var(--rose);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--rose-deep);flex-shrink:0;font-family:-apple-system,sans-serif;">4</div>
+            <div style="font-size:13px;color:var(--text-mid);font-family:-apple-system,sans-serif;line-height:1.6;">Copy your <strong style="color:var(--text-dark);">Client ID</strong> and paste it below</div>
+          </div>
+        </div>
+        <input id="clientIdInput" class="search-input font-sans" placeholder="Paste Client ID here..." style="margin-bottom:12px;width:100%;" />
+        <div style="display:flex;gap:10px;">
+          <button class="close-btn font-sans" style="flex:1;background:transparent;color:var(--rose-deep);border:1.5px solid var(--rose);" onclick="closeModals()">Cancel</button>
+          <button class="close-btn font-sans" style="flex:1;" onclick="saveAndConnect()">Connect ✨</button>
+        </div>
+      </div>
+    </div>`;
+    }
+
+    async function saveAndConnect(){
+        const val = document.getElementById('clientIdInput')?.value?.trim();
+        if(!val || val.length < 10){ toast('Please paste a valid Client ID'); return; }
+        sessionStorage.setItem('spotify_client_id', val);
+        window._clientId = val;
+        closeModals();
+        await connectSpotifyWithId(val);
+    }
+
+// ── Render ─────────────────────────────────────────────
+function render(){
+  renderHeader();
+  renderQueue();
+  // hide banner if connected
+  const banner = document.getElementById('connectBanner');
+  if(banner) banner.style.display = spotifyToken ? 'none' : '';
+}
+
+function renderHeader(){
+  const el = document.getElementById('headerRight');
+  if(!el) return;
+  if(spotifyToken){
+    el.innerHTML = `
+        <div class="spotify-badge font-sans">
+            <div class="dot-pulse"></div>Spotify
+    </div>
+        <button class="icon-btn" onclick="openQR()" title="Invite friends">⊞</button>`;
+  } else {
+    el.innerHTML = `<button class="icon-btn" onclick="openQR()" title="Invite friends">⊞</button>`;
+  }
+}
+
+function normalizeSpotifyQueueItem(item){
+  if(!item || !item.uri) return null;
+  if(item.show || item.type === 'episode'){
+    const imgs = item.images || [];
+    const art = imgs.find(i => i.width >= 300)?.url || imgs[0]?.url || '';
+    return {
+      id: item.id,
+      uri: item.uri,
+      title: item.name || '—',
+      artist: item.show?.name || 'Podcast',
+      art,
+    };
+  }
+  if(item.name && item.album){
+    const imgs = item.album.images || [];
+    const art = imgs.find(i => i.width >= 300)?.url || imgs[0]?.url || '';
+    return {
+      id: item.id,
+      uri: item.uri,
+      title: item.name,
+      artist: (item.artists || []).map(a => a.name).join(', '),
+      art,
+    };
+  }
+  return null;
+}
+
+function spotifyQueueSignature(list){
+  return list.map(x => x.uri).join('\x1e');
+}
+
+async function fetchSpotifyQueue(){
+  if(!spotifyToken) return;
+  try{
+    const r = await spotifyApiFetch('https://api.spotify.com/v1/me/player/queue',{});
+    if(r.status === 204 || r.status === 404){
+      if(lastSpotifyQueueSig === '' && spotifyQueueList.length === 0) return;
+      lastSpotifyQueueSig = '';
+      spotifyQueueList = [];
+      pruneBloomHiddenQueueUris(spotifyQueueList);
+      renderQueue();
+      return;
+    }
+    if(!r.ok){
+      if(lastSpotifyQueueSig === '' && spotifyQueueList.length === 0) return;
+      lastSpotifyQueueSig = '';
+      spotifyQueueList = [];
+      pruneBloomHiddenQueueUris(spotifyQueueList);
+      renderQueue();
+      return;
+    }
+    const data = await r.json();
+    const curFromQueue = data.currently_playing?.uri;
+    const curUri = curFromQueue || nowPlayingTrackUri;
+    const raw = data.queue || [];
+    const newList = raw
+      .map(normalizeSpotifyQueueItem)
+      .filter(Boolean)
+      .filter(x => x.uri !== curUri);
+    const sig = spotifyQueueSignature(newList);
+    if(sig === lastSpotifyQueueSig) return;
+    lastSpotifyQueueSig = sig;
+    spotifyQueueList = newList;
+    pruneBloomHiddenQueueUris(newList);
+    renderQueue();
+  } catch(e){
+    if(lastSpotifyQueueSig === '' && spotifyQueueList.length === 0) return;
+    lastSpotifyQueueSig = '';
+    spotifyQueueList = [];
+    pruneBloomHiddenQueueUris(spotifyQueueList);
+    renderQueue();
+  }
+}
+
+function renderQueue(){
+  const el = document.getElementById('queue');
+  const hint = document.getElementById('queueSectionHint');
+  if(spotifyToken){
+    if(hint) hint.textContent = 'Live from Spotify — × removes from Bloom only (Spotify has no remove-from-queue API)';
+    const visible = spotifyVisibleQueue();
+    const n = visible.length;
+    const apiN = spotifyQueueList.length;
+    const paintSig = spotifyQueuePaintSig();
+    if(el.getAttribute('data-queue-sig') === paintSig) return;
+    el.setAttribute('data-queue-sig', paintSig);
+    document.getElementById('queueCount').textContent = n ? `${n} upcoming` : (apiN ? 'all hidden' : '');
+    if(apiN === 0){
+      el.innerHTML = '<div class="empty">Nothing queued yet — add a song or keep listening in Spotify 🌸</div>';
+      return;
+    }
+    if(n === 0){
+      el.innerHTML = '<div class="empty">Every upcoming track is hidden in Bloom. They can still play in Spotify — clear them in the Spotify app, or wait until the queue changes.</div>';
+      return;
+    }
+    el.innerHTML = visible.map((s,i)=>`
+        <div class="song-card ${i===0?'top':''}">
+            <span class="song-rank font-sans">#${i+1}</span>
+        ${s.art ? `<img class="song-art" src="${s.art}" alt="" onerror="this.outerHTML='<div class=\\'song-art-ph\\'>🎵</div>'" />` : `<div class="song-art-ph">🎵</div>`}
+        <div class="song-info">
+            <div class="song-title font-serif">${esc(s.title)}</div>
+            <div class="song-meta font-sans">${esc(s.artist)}</div>
+        </div>
+        <button type="button" class="remove-btn" data-queue-rm="${escAttr(s.uri)}" onclick="removeSpotifyQueueRow(this.getAttribute('data-queue-rm'))" title="Remove from Bloom list (Spotify may still play this track)" aria-label="Remove from Bloom list">×</button>
+    </div>`).join('');
+    return;
+  }
+  el.removeAttribute('data-queue-sig');
+  if(hint) hint.textContent = 'sorted by votes ♥';
+  const sorted = [...songs].sort((a,b)=>b.votes-a.votes);
+  document.getElementById('queueCount').textContent = `${sorted.length} songs`;
+  if(!sorted.length){ el.innerHTML='<div class="empty">No songs yet — add the first one! 🌸</div>'; return; }
+  el.innerHTML = sorted.map((s,i)=>`
+        <div class="song-card ${i===0?'top':''}" style="animation:cardIn .35s ${i*0.05}s both;">
+            <span class="song-rank font-sans">#${i+1}</span>
+        ${s.art ? `<img class="song-art" src="${s.art}" alt="" onerror="this.outerHTML='<div class=\\'song-art-ph\\'>🎵</div>'" />` : `<div class="song-art-ph">🎵</div>`}
+        <div class="song-info">
+            <div class="song-title font-serif">${esc(s.title)}</div>
+            <div class="song-meta">${esc(s.artist)} · ${esc(s.by||'')}</div>
+        </div>
+        <button type="button" class="remove-btn" data-sid="${escAttr(s.id)}" onclick="removeSong(this.dataset.sid)" title="Remove from queue" aria-label="Remove from queue">×</button>
+        <div class="vote-col">
+            <button type="button" class="vote-btn ${votedIds.has(s.id)?'voted':''}" onclick="vote('${escIdJs(s.id)}')">♥</button>
+            <span class="vote-count font-sans">${s.votes}</span>
+        </div>
+    </div>`).join('');
+}
+
+function escAttr(s){
+  return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+}
+function escIdJs(s){
+  return String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+}
+
+function removeSong(id){
+  if(!id) return;
+  votedIds.delete(id);
+  const idx = songs.findIndex(x=>x.id===id);
+  if(idx === -1) return;
+  const removed = songs[idx];
+  songs.splice(idx, 1);
+  renderQueue();
+  toast('Removed "' + removed.title + '"');
+}
+
+function vote(id){
+  if(votedIds.has(id)) return;
+  votedIds.add(id);
+  const s = songs.find(x=>x.id===id);
+  if(s){ s.votes++; renderQueue(); }
+}
+
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function formatTimeMs(ms){
+  const s = Math.max(0, Math.floor((ms||0)/1000));
+  return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+}
+
+function clearNowPlayingTimers(){
+  if(npPollTimer){ clearInterval(npPollTimer); npPollTimer = null; }
+  if(npTickTimer){ clearInterval(npTickTimer); npTickTimer = null; }
+  if(demoNpTimer){ clearInterval(demoNpTimer); demoNpTimer = null; }
+}
+
+function setNpArt(url){
+  const img = document.getElementById('npArt');
+  const ph = document.getElementById('npArtPh');
+  if(!img || !ph) return;
+  if(url){
+    img.style.display = '';
+    ph.style.display = 'none';
+    img.src = url;
+  } else {
+    img.style.display = 'none';
+    ph.style.display = 'flex';
+    img.removeAttribute('src');
+  }
+}
+
+function applyNpProgress(progressMs, durationMs){
+  const fill = document.getElementById('progressFill');
+  const tCur = document.getElementById('progressTime');
+  const tTot = document.getElementById('progressTotal');
+  const d = durationMs || 1;
+  const p = Math.min(Math.max(0, progressMs), d);
+  if(fill) fill.style.width = `${(p/d)*100}%`;
+  if(tCur) tCur.textContent = formatTimeMs(p);
+  if(tTot) tTot.textContent = formatTimeMs(d);
+}
+
+function showNowPlayingDemo(){
+  npLast = null;
+  const label = document.getElementById('npLabel');
+  const eq = document.getElementById('npEqBars');
+  if(label) label.textContent = 'Demo';
+  if(eq){ eq.classList.remove('np-paused'); }
+  document.getElementById('npTitle').textContent = DEMO_NP.title;
+  document.getElementById('npArtist').textContent = DEMO_NP.artist;
+  setNpArt(DEMO_NP.art);
+  let prog = DEMO_NP.progressMs;
+  const total = DEMO_NP.durationMs;
+  applyNpProgress(prog, total);
+  if(demoNpTimer) clearInterval(demoNpTimer);
+  demoNpTimer = setInterval(()=>{
+    prog = Math.min(prog + 1000, total);
+    if(prog >= total) prog = 0;
+    applyNpProgress(prog, total);
+  }, 1000);
+}
+
+function showNowPlayingIdle(title, sub){
+  nowPlayingTrackUri = null;
+  npLast = null;
+  const label = document.getElementById('npLabel');
+  const eq = document.getElementById('npEqBars');
+  if(label) label.textContent = 'Spotify';
+  if(eq){ eq.classList.add('np-paused'); }
+  document.getElementById('npTitle').textContent = title || 'Nothing playing';
+  document.getElementById('npArtist').textContent = sub || 'Start playback on your phone, desktop, or web player';
+  setNpArt('');
+  applyNpProgress(0, 1);
+  if(document.getElementById('progressTotal')) document.getElementById('progressTotal').textContent = '0:00';
+}
+
+function tickNowPlayingFromCache(){
+  if(!npLast || !npLast.item) return;
+  let p = npLast.progress_ms;
+  if(npLast.is_playing) p += Date.now() - npLast.fetchedAt;
+  p = Math.min(p, npLast.duration_ms);
+  applyNpProgress(p, npLast.duration_ms);
+}
+
+function applySpotifyTrackToUI(item, isPlaying){
+  const label = document.getElementById('npLabel');
+  const eq = document.getElementById('npEqBars');
+  if(label) label.textContent = isPlaying ? 'Now Playing' : 'Paused';
+  if(eq) eq.classList.toggle('np-paused', !isPlaying);
+  const artists = (item.artists || []).map(a => a.name).join(', ');
+  const album = item.album?.name || '';
+  document.getElementById('npTitle').textContent = item.name || '—';
+  document.getElementById('npArtist').textContent = album ? `${artists} · ${album}` : artists;
+  const imgs = item.album?.images || [];
+  const artUrl = imgs.find(i => i.width >= 300)?.url || imgs[0]?.url || '';
+  setNpArt(artUrl || '');
+}
+
+async function fetchNowPlaying(){
+  if(!spotifyToken) return;
+  try{
+    const r = await spotifyApiFetch('https://api.spotify.com/v1/me/player', {});
+    if(r.status === 204 || r.status === 404){
+      showNowPlayingIdle('Nothing playing', 'Open Spotify and press play on any device');
+      return;
+    }
+    if(!r.ok) return;
+    const data = await r.json();
+    if(!data.item){
+      showNowPlayingIdle('Nothing playing', 'Play a track in Spotify to see it here');
+      return;
+    }
+    if(data.currently_playing_type === 'episode'){
+      const ep = data.item;
+      nowPlayingTrackUri = ep.uri || null;
+      const showName = ep.show?.name || 'Podcast';
+      const label = document.getElementById('npLabel');
+      const eq = document.getElementById('npEqBars');
+      if(label) label.textContent = data.is_playing ? 'Now Playing' : 'Paused';
+      if(eq) eq.classList.toggle('np-paused', !data.is_playing);
+      document.getElementById('npTitle').textContent = ep.name || '—';
+      document.getElementById('npArtist').textContent = showName;
+      const eimgs = ep.images || [];
+      const eArt = eimgs.find(i => i.width >= 300)?.url || eimgs[0]?.url || '';
+      setNpArt(eArt || '');
+      npLast = {
+        item: ep,
+        progress_ms: data.progress_ms || 0,
+        duration_ms: ep.duration_ms || 1,
+        is_playing: !!data.is_playing,
+        fetchedAt: Date.now(),
+      };
+      tickNowPlayingFromCache();
+      return;
+    }
+    nowPlayingTrackUri = data.item.uri || null;
+    npLast = {
+      item: data.item,
+      progress_ms: data.progress_ms || 0,
+      duration_ms: data.item.duration_ms || 1,
+      is_playing: !!data.is_playing,
+      fetchedAt: Date.now(),
+    };
+    applySpotifyTrackToUI(data.item, !!data.is_playing);
+    tickNowPlayingFromCache();
+  } catch(e){}
+}
+
+async function pollSpotifyState(){
+  if(!spotifyToken) return;
+  await fetchNowPlaying();
+  await fetchSpotifyQueue();
+}
+
+function startNowPlayingOrDemo(){
+  clearNowPlayingTimers();
+  if(spotifyToken){
+    pollSpotifyState();
+    npPollTimer = setInterval(pollSpotifyState, 3500);
+    npTickTimer = setInterval(tickNowPlayingFromCache, 500);
+  } else {
+    lastSpotifyQueueSig = '';
+    bloomHiddenQueueUris.clear();
+    sessionStorage.removeItem('bloom_spotify_queue_hidden');
+    showNowPlayingDemo();
+  }
+}
+
+// ── Toast ──────────────────────────────────────────────
+function toast(msg){
+  clearTimeout(toastTimer);
+  let t = document.getElementById('toast');
+  if(!t){ t=document.createElement('div'); t.id='toast'; t.className='toast font-sans'; document.body.appendChild(t); }
+  t.textContent = msg;
+  t.style.display='block';
+  t.style.animation='none'; void t.offsetWidth; t.style.animation='popIn .3s ease';
+  toastTimer = setTimeout(()=>{ if(t) t.style.display='none'; },3000);
+}
+
+// ── Add Song Sheet ─────────────────────────────────────
+function openAdd(){
+  const m = document.getElementById('modals');
+  m.innerHTML = `
+        <div class="sheet-overlay" id="sheetOverlay" onclick="closeIfBackdrop(event,'sheetOverlay')">
+            <div class="sheet">
+            <div class="sheet-handle"></div>
+        <div class="sheet-title font-serif">Add a Song ✨</div>
+        <div class="search-wrap">
+            <span class="search-icon">♪</span>
+            <input class="search-input font-sans" id="searchInput" placeholder="Search for a song or artist..." oninput="handleSearch(this.value)" autocomplete="off" autofocus />
+        </div>
+        <div class="results-list" id="results"></div>
+        <div id="searchHint" style="text-align:center;padding:20px;color:var(--text-soft);font-size:13px;font-family:-apple-system,sans-serif;">Type to search for songs 🎶</div>
+    </div>
+    </div>`;
+}
+
+let searchTimer = null;
+function handleSearch(q){
+  clearTimeout(searchTimer);
+  const hint = document.getElementById('searchHint');
+  const res = document.getElementById('results');
+  if(!q.trim()){
+    if(res) res.innerHTML='';
+    if(hint){ hint.style.display='block'; hint.textContent='Type to search for songs 🎶'; }
+    return;
+  }
+  if(hint) hint.style.display='none';
+  searchTimer = setTimeout(()=>doSearch(q),350);
+}
+
+async function doSearch(q){
+  const res = document.getElementById('results');
+  if(!res) return;
+  res.innerHTML = `<div style="text-align:center;padding:16px;color:var(--text-soft);font-size:13px;font-family:-apple-system,sans-serif;">Searching...</div>`;
+
+  let results = [];
+
+  if(spotifyToken){
+    try{
+      const r = await spotifyApiFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=track&limit=7`,{});
+            const data = await r.json();
+        results = (data.tracks?.items||[]).map(t=>({
+            id:t.id, uri:t.uri,
+            title:t.name,
+            artist:t.artists.map(a=>a.name).join(', '),
+            dur:`${Math.floor(t.duration_ms/60000)}:${String(Math.floor((t.duration_ms%60000)/1000)).padStart(2,'0')}`,
+            art: t.album.images[1]?.url || t.album.images[0]?.url || '',
+        }));
+    }catch(e){}
+    } else {
+        // demo fallback
+        results = [...DEMO_SONGS, ...SEARCH_DEMOS].filter(s=>
+            s.title.toLowerCase().includes(q.toLowerCase()) ||
+            s.artist.toLowerCase().includes(q.toLowerCase())
+        ).slice(0,6);
+    }
+
+    if(!res) return;
+    if(!results.length){ res.innerHTML=`<div style="text-align:center;padding:16px;color:var(--text-soft);font-size:13px;font-family:-apple-system,sans-serif;">No results found 🫧</div>`; return; }
+    res.innerHTML = results.map(s=>`
+    <div class="result-item" id="ri-${s.id}" onclick="addSong(${JSON.stringify(s).replace(/"/g,'&quot;')})">
+      ${s.art ? `<img style="width:42px;height:42px;border-radius:8px;object-fit:cover;flex-shrink:0;" src="${s.art}" alt="" onerror="this.outerHTML='<div class=\\'result-art\\'>🎵</div>'" />` : `<div class="result-art">🎵</div>`}
+      <div style="flex:1;min-width:0;">
+        <div class="result-title font-serif">${esc(s.title)}</div>
+        <div class="result-artist">${esc(s.artist)}</div>
+      </div>
+      <span class="result-dur">${esc(s.dur||s.duration||'')}</span>
+    </div>`).join('');
+    }
+
+    async function addSong(s){
+        const el = document.getElementById('ri-'+s.id);
+        if(el){ el.classList.add('added-flash'); el.innerHTML = el.innerHTML.replace('result-dur','result-dur').replace(s.dur||s.duration||'','✓'); }
+        // add to Spotify queue
+        if(spotifyToken && s.uri){
+            try{
+                const qr = await spotifyApiFetch(`https://api.spotify.com/v1/me/player/queue?uri=${encodeURIComponent(s.uri)}`,{method:'POST'});
+                if(qr.status===404) toast('Start playback on a Spotify device first (Premium)');
+                else if(!qr.ok && qr.status!==204){ const j=await qr.json().catch(()=>({})); toast(j.error?.message||'Could not add to Spotify queue'); }
+            }catch(e){}
+        }
+        if(!spotifyToken){
+            if(!songs.find(x=>x.id===s.id)){
+                songs.unshift({...s,votes:1,by:'@you',emoji:s.emoji||'🎵'});
+            }
+        }
+        toast(`"${s.title}" added to queue ♥`);
+        setTimeout(async ()=>{
+            closeModals();
+            if(spotifyToken) await fetchSpotifyQueue();
+            render();
+        },800);
+    }
+
+    function getEmoji(title){
+        const t = title.toLowerCase();
+        if(t.includes('summer')||t.includes('sun')) return '☀️';
+        if(t.includes('night')||t.includes('moon')) return '🌙';
+        if(t.includes('love')||t.includes('heart')) return '💕';
+        if(t.includes('flower')||t.includes('rose')) return '🌸';
+        if(t.includes('rain')) return '🌧️';
+        if(t.includes('fire')) return '🔥';
+        if(t.includes('star')) return '⭐';
+        if(t.includes('sky')) return '🌤️';
+        const emojis=['🎵','🎶','💫','✨','🌿','🎀','🫶','🌺','🍒','🌙'];
+        return emojis[Math.floor(Math.random()*emojis.length)];
+    }
+
+    async function buildInviteUrl(){
+        const spotifyOnly = sessionStorage.getItem('bloom_qr_spotify_only')?.trim();
+        if(spotifyOnly && (/^https:\/\/(open\.)?spotify\.com\//i.test(spotifyOnly) || /^spotify:[a-z]+:/i.test(spotifyOnly))){
+            return { url: spotifyOnly, usedLan: false, mode: 'spotify' };
+        }
+        const bloomPublic = sessionStorage.getItem('bloom_qr_invite_url')?.trim();
+        if(bloomPublic && /^https:\/\//i.test(bloomPublic)){
+            try{
+                const u = new URL(bloomPublic);
+                u.searchParams.set('join', 'bloom');
+                u.hash = '';
+                return { url: u.toString(), usedLan: false, mode: 'bloom-public' };
+            } catch(e){}
+        }
+        let origin = window.location.origin;
+        let usedLan = false;
+        const injected = typeof window.__BLOOM_LAN_ORIGIN__ === 'string'
+            && /^https?:\/\//i.test(window.__BLOOM_LAN_ORIGIN__);
+        if(injected){
+            origin = window.__BLOOM_LAN_ORIGIN__;
+            usedLan = true;
+        } else {
+            try{
+                const r = await fetch(new URL('/__bloom/lan.json', window.location.origin), { cache: 'no-store' });
+                if(r.ok){
+                    const j = await r.json();
+                    if(j.origin && /^https?:\/\//i.test(j.origin)){
+                        origin = j.origin;
+                        usedLan = true;
+                    }
+                }
+            } catch(e){}
+        }
+        const u = new URL(window.location.pathname + window.location.search, origin);
+        u.searchParams.set('join', 'bloom');
+        u.hash = '';
+        return { url: u.toString(), usedLan, mode: 'lan' };
+    }
+
+    function setQrHint(el, url, mode, usedLan){
+        if(!el) return;
+        if(mode === 'spotify'){
+            el.innerHTML = 'QR opens <strong>Spotify</strong> only — no Bloom or Wi‑Fi needed. They add to <em>their</em> queue in the app (⋯ → Add to queue). Spotify does not offer a link that adds to <em>your</em> queue on their phone.';
+            return;
+        }
+        if(mode === 'bloom-public'){
+            el.innerHTML = 'QR uses your <strong>public https</strong> link — works off Wi‑Fi. Same Spotify login rules as on your computer.<br><code style="font-size:10px;word-break:break-all;display:block;margin-top:6px;font-style:normal;color:var(--text-mid);">' + esc(url) + '</code>';
+            return;
+        }
+        if(usedLan){
+            el.innerHTML = 'QR uses your Wi‑Fi address (same network only):<br><code style="font-size:10px;word-break:break-all;display:block;margin-top:6px;font-style:normal;color:var(--text-mid);">' + esc(url) + '</code>';
+            return;
+        }
+        if(['localhost','127.0.0.1',''].includes(window.location.hostname)){
+            el.innerHTML = 'Use <strong>Public Bloom URL</strong> or <strong>Spotify link</strong> above to avoid Wi‑Fi, or run <code style="font-size:10px;">npm start</code> for LAN. Turn Wi‑Fi on for auto LAN detection.';
+            return;
+        }
+        el.textContent = 'QR uses this page’s URL. Add it to Spotify Redirect URIs if guests log in here.';
+    }
+
+    function applyQrSettings(){
+        const bloom = document.getElementById('qrBloomUrl')?.value?.trim() || '';
+        const sp = document.getElementById('qrSpotifyUrl')?.value?.trim() || '';
+        if(sp){
+            if(!/^https:\/\/(open\.)?spotify\.com\//i.test(sp) && !/^spotify:[a-z]+:/i.test(sp)){
+                toast('Spotify field: use https://open.spotify.com/... or spotify:track:...');
+                return;
+            }
+            sessionStorage.setItem('bloom_qr_spotify_only', sp);
+            sessionStorage.removeItem('bloom_qr_invite_url');
+        } else if(bloom){
+            if(!/^https:\/\//i.test(bloom)){
+                toast('Bloom URL must start with https://');
+                return;
+            }
+            try{ new URL(bloom); } catch(e){ toast('That URL does not look valid'); return; }
+            sessionStorage.setItem('bloom_qr_invite_url', bloom);
+            sessionStorage.removeItem('bloom_qr_spotify_only');
+        } else {
+            sessionStorage.removeItem('bloom_qr_invite_url');
+            sessionStorage.removeItem('bloom_qr_spotify_only');
+        }
+        toast('QR updated');
+        refreshQrInModal();
+    }
+
+    function refreshQrInModal(){
+        buildInviteUrl().then(({ url, usedLan, mode }) => {
+            const hint = document.getElementById('qrLanHint');
+            setQrHint(hint, url, mode, usedLan);
+            return loadQRScript().then(() => {
+                const mount = document.getElementById('qrMount');
+                if(mount) paintQRCode(mount, url);
+            });
+        });
+    }
+
+    function loadQRScript(){
+        return new Promise((res, rej) => {
+            if(typeof QRCode !== 'undefined') return res();
+            const s = document.createElement('script');
+            s.src = 'https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js';
+            s.onload = () => res();
+            s.onerror = () => rej(new Error('qr'));
+            document.head.appendChild(s);
+        });
+    }
+
+    function paintQRCode(mount, text){
+        mount.textContent = '';
+        const canvas = document.createElement('canvas');
+        QRCode.toCanvas(canvas, text, {
+            width: 200,
+            margin: 2,
+            color: { dark: '#2d1a22', light: '#fdf0f3' },
+        }, (err) => {
+            if(err){
+                mount.innerHTML = '<p class="qr-fallback">Could not build QR. Copy the link from your browser bar instead.</p>';
+                return;
+            }
+            mount.appendChild(canvas);
+        });
+    }
+
+    // ── QR Modal ───────────────────────────────────────────
+    function openQR(){
+        const m = document.getElementById('modals');
+        m.innerHTML = `
+    <div class="overlay" onclick="closeIfBackdrop(event,'overlay-qr')" id="overlay-qr">
+      <div class="modal-card" style="max-width:380px;text-align:left;" onclick="event.stopPropagation()">
+        <div class="modal-title font-serif" style="text-align:center;">Invite 🌸</div>
+        <div class="modal-sub" style="text-align:center;">QR works without Wi‑Fi if you use a public link or a Spotify URL below.</div>
+        <div class="qr-box" id="qrMount" style="display:block;margin-left:auto;margin-right:auto;"><p class="qr-fallback">Building QR…</p></div>
+        <p id="qrLanHint" style="font-size:11px;color:var(--text-soft);font-style:italic;margin-bottom:14px;font-family:-apple-system,sans-serif;line-height:1.5;">…</p>
+        <div style="border-top:1px solid var(--glass-border);padding-top:14px;">
+          <div style="font-size:11px;font-weight:600;color:var(--text-mid);margin-bottom:6px;font-family:-apple-system,sans-serif;">Public Bloom page (https)</div>
+          <input type="url" id="qrBloomUrl" class="search-input font-sans" style="width:100%;margin-bottom:6px;box-sizing:border-box;" placeholder="https://…/bloom-playlist.html" autocomplete="off" />
+          <p style="font-size:10px;color:var(--text-soft);line-height:1.45;margin-bottom:12px;font-family:-apple-system,sans-serif;">Host this file on Netlify, Cloudflare Pages, GitHub Pages, etc., then paste the live URL. Guests open Bloom from the internet.</p>
+          <div style="font-size:11px;font-weight:600;color:var(--text-mid);margin-bottom:6px;font-family:-apple-system,sans-serif;">Or Spotify link only (track or playlist)</div>
+          <input type="text" id="qrSpotifyUrl" class="search-input font-sans" style="width:100%;margin-bottom:6px;box-sizing:border-box;" placeholder="https://open.spotify.com/… or spotify:track:…" autocomplete="off" />
+          <p style="font-size:10px;color:var(--text-soft);line-height:1.45;margin-bottom:12px;font-family:-apple-system,sans-serif;">Opens the Spotify app. They add to their own queue there — there is no official link that adds to your queue on their device.</p>
+          <button type="button" class="close-btn font-sans" style="width:100%;margin-bottom:8px;" onclick="applyQrSettings()">Save &amp; refresh QR</button>
+          <p style="font-size:10px;color:var(--text-soft);text-align:center;font-family:-apple-system,sans-serif;">Leave both blank and save to use Wi‑Fi / auto URL again.</p>
+        </div>
+        <button type="button" class="close-btn font-sans" style="width:100%;margin-top:6px;background:transparent;color:var(--rose-deep);border:1.5px solid var(--rose);" onclick="closeModals()">Done</button>
+      </div>
+    </div>`;
+        const b = document.getElementById('qrBloomUrl');
+        const s = document.getElementById('qrSpotifyUrl');
+        if(b) b.value = sessionStorage.getItem('bloom_qr_invite_url') || '';
+        if(s) s.value = sessionStorage.getItem('bloom_qr_spotify_only') || '';
+        buildInviteUrl().then(({ url, usedLan, mode }) => {
+            const hint = document.getElementById('qrLanHint');
+            setQrHint(hint, url, mode, usedLan);
+            return loadQRScript().then(() => {
+                const mount = document.getElementById('qrMount');
+                if(mount) paintQRCode(mount, url);
+            });
+        }).catch(() => {
+            const mount = document.getElementById('qrMount');
+            if(mount) mount.innerHTML = '<p class="qr-fallback">Could not build the QR. Check your network for the QR library, or set a Spotify / https link above.</p>';
+        });
+    }
+
+    function closeModals(){ document.getElementById('modals').innerHTML=''; }
+    function closeIfBackdrop(e,id){ if(e.target.id===id) closeModals(); }
+
+    // ── Init ───────────────────────────────────────────────
+    (async function init(){
+        await handleOAuthCallback();
+        if(!spotifyToken){
+            const hash = window.location.hash.slice(1);
+            const p = new URLSearchParams(hash);
+            const t = p.get('access_token');
+            if(t){
+                spotifyToken = t;
+                sessionStorage.setItem('spotify_access_token', t);
+                cleanOAuthUrl();
+            }
+        }
+        if(!spotifyToken) spotifyToken = sessionStorage.getItem('spotify_access_token');
+        loadBloomHiddenQueueUris();
+        render();
+        startNowPlayingOrDemo();
+    })();
+</script>
+</body>
+</html>
