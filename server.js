@@ -70,7 +70,9 @@ function computeLanOrigin(req) {
   const hostname = h.split(':')[0];
   if (/^(127\.0\.0\.1|localhost|\[::1\])$/i.test(hostname)) return null;
   if (/^\[/.test(hostname)) return null;
-  return `http://${h}`;
+  const proto = String(req.headers['x-forwarded-proto'] || 'http').split(',')[0].trim();
+  const scheme = proto === 'https' ? 'https' : 'http';
+  return `${scheme}://${h}`;
 }
 
 const server = http.createServer((req, res) => {
@@ -123,20 +125,24 @@ const server = http.createServer((req, res) => {
   }
 });
 
-server.listen(PORT, '0.0.0.0', () => {
-  const local = `http://127.0.0.1:${PORT}`;
-  const lanIp = getLanIPv4();
-  const lan = lanIp ? `http://${lanIp}:${PORT}` : null;
-  console.log('');
-  console.log(`  Bloom → ${local}/  (same as /${DEFAULT})`);
-  if (lan) console.log(`  On your network → ${lan}/  (phones / QR use this)`);
-  console.log('');
-  console.log('  Spotify Dashboard → Redirect URIs (exact match for each URL you use):');
-  console.log(`    ${local}/`);
-  console.log(`    ${local}/${DEFAULT}`);
-  if (lan) {
-    console.log(`    ${lan}/`);
-    console.log(`    ${lan}/${DEFAULT}`);
-  }
-  console.log('');
-});
+if (!process.env.VERCEL) {
+  server.listen(PORT, '0.0.0.0', () => {
+    const local = `http://127.0.0.1:${PORT}`;
+    const lanIp = getLanIPv4();
+    const lan = lanIp ? `http://${lanIp}:${PORT}` : null;
+    console.log('');
+    console.log(`  Bloom → ${local}/  (same as /${DEFAULT})`);
+    if (lan) console.log(`  On your network → ${lan}/  (phones / QR use this)`);
+    console.log('');
+    console.log('  Spotify Dashboard → Redirect URIs (exact match for each URL you use):');
+    console.log(`    ${local}/`);
+    console.log(`    ${local}/${DEFAULT}`);
+    if (lan) {
+      console.log(`    ${lan}/`);
+      console.log(`    ${lan}/${DEFAULT}`);
+    }
+    console.log('');
+  });
+}
+
+module.exports = server;
