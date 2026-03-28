@@ -227,7 +227,7 @@
  
     const CLIENT_ID = 'd3867244b6a646c490301a91fa564c11'; // replace with yours
     const REDIRECT = window.location.href.split('?')[0].split('#')[0];
-    const SCOPES = 'user-read-playback-state user-modify-playback-state user-read-currently-playing';
+    const SCOPES = 'user-read-playback-state user-modify-playback-state user-read-currently-playing offline_access';
  
     function generateRandomString(len) {
         const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -358,6 +358,7 @@
             state: state,
             code_challenge_method: 'S256',
             code_challenge: challenge,
+            show_dialog: 'true',  // always show login so we always get a refresh token
         });
         window.location.href = 'https://accounts.spotify.com/authorize?' + q.toString();
     }
@@ -1242,6 +1243,14 @@ async function doSearch(q){
             }
         }
         if(!spotifyToken) spotifyToken = sessionStorage.getItem('spotify_access_token');
+
+        // If we have a Spotify token but no Bloom session yet,
+        // create one now using the stored refresh token.
+        if (spotifyToken && !bloomSessionId) {
+            const rt = sessionStorage.getItem('spotify_refresh_token');
+            if (rt) await createBloomSession(rt);
+        }
+
         loadBloomHiddenQueueUris();
         render();
         startNowPlayingOrDemo();
