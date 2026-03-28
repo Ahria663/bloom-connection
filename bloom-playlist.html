@@ -143,11 +143,11 @@
         .eq-bars.np-paused .eq-bar{animation-play-state:paused;opacity:.45;}
 
         /* ── split layout when lyrics are open ── */
-        .split-layout{display:flex;gap:0;align-items:flex-start;max-width:960px;margin:0 auto;}
-        .split-queue{flex:0 0 480px;padding:24px 16px 110px;position:relative;z-index:1;min-width:0;}
-        .split-lyrics{flex:1;min-width:0;padding:24px 20px 110px;position:sticky;top:0;height:100vh;overflow:hidden;display:flex;flex-direction:column;}
-        body.lyrics-mode .app{display:none;}
-        body.lyrics-mode .split-layout{display:flex;}
+        body.lyrics-mode{overflow:hidden;}
+        body.lyrics-mode .app{flex:0 0 480px;max-width:480px;margin:0;}
+        body.lyrics-mode > .split-lyrics-panel{display:flex !important;}
+        .split-lyrics-panel{display:none;position:fixed;top:0;right:0;bottom:0;left:480px;flex-direction:column;padding:24px 28px 32px;background:var(--blush);border-left:1px solid var(--glass-border);z-index:10;}
+        body.lyrics-mode{display:flex;align-items:flex-start;}
 
         /* lyrics karaoke */
         .lyrics-karaoke{flex:1;overflow:hidden;position:relative;mask-image:linear-gradient(to bottom,transparent 0%,black 15%,black 75%,transparent 100%);-webkit-mask-image:linear-gradient(to bottom,transparent 0%,black 15%,black 75%,transparent 100%);}
@@ -222,16 +222,11 @@
  
 </div>
  
-<!-- Split layout (hidden until lyrics open) -->
-<div class="split-layout" id="splitLayout" style="display:none;">
-    <!-- Left: queue -->
-    <div class="split-queue" id="splitQueue"></div>
-    <!-- Right: lyrics -->
-    <div class="split-lyrics">
-        <div class="lyrics-status font-sans" id="lyricsStatus">♪ loading…</div>
-        <div class="lyrics-karaoke" id="lyricsKaraoke">
-            <div class="lyrics-scroll" id="lyricsScroll"></div>
-        </div>
+<!-- Lyrics panel - sits to the right of #app when open -->
+<div class="split-lyrics-panel" id="splitLyricsPanel">
+    <div class="lyrics-status font-sans" id="lyricsStatus">♪ loading…</div>
+    <div class="lyrics-karaoke" id="lyricsKaraoke">
+        <div class="lyrics-scroll" id="lyricsScroll"></div>
     </div>
 </div>
 
@@ -805,7 +800,6 @@ function applySpotifyTrackToUI(item, isPlaying){
   currentLyricsTrack = { title, artist: primaryArtist };
   if(lyricsOpen){
     fetchLyricsKaraoke(title, primaryArtist);
-    setTimeout(syncSplitQueue, 100);
   }
 }
 
@@ -824,10 +818,6 @@ function toggleLyrics(){
 function openLyrics(){
   lyricsOpen = true;
   document.body.classList.add('lyrics-mode');
-  const layout = document.getElementById('splitLayout');
-  layout.style.display = 'flex';
-  // Clone the queue into split-queue
-  syncSplitQueue();
   const btn = document.getElementById('lyricsBtn');
   if(btn) btn.classList.add('active-btn');
   if(currentLyricsTrack){
@@ -838,27 +828,9 @@ function openLyrics(){
 function closeLyrics(){
   lyricsOpen = false;
   document.body.classList.remove('lyrics-mode');
-  document.getElementById('splitLayout').style.display = 'none';
   const btn = document.getElementById('lyricsBtn');
   if(btn) btn.classList.remove('active-btn');
   clearInterval(lyricsTickTimer);
-}
-
-function syncSplitQueue(){
-  // Only mirror the header + now-playing + queue sections — not the whole app
-  // and only do it once per render cycle
-  const dst = document.getElementById('splitQueue');
-  if(!dst) return;
-  const header   = document.getElementById('app')?.querySelector('.header');
-  const np       = document.getElementById('nowPlaying');
-  const banner   = document.getElementById('connectBanner');
-  const qHeader  = document.getElementById('app')?.querySelector('.section-header');
-  const queue    = document.getElementById('queue');
-  dst.innerHTML = '';
-  dst.style.cssText = 'flex:0 0 480px;padding:24px 16px 110px;position:relative;z-index:1;min-width:0;';
-  [header, np, banner, qHeader, queue].forEach(function(el){
-    if(el) dst.appendChild(el.cloneNode(true));
-  });
 }
 
 // lyricsLines now stores {time, text} objects for timestamped sync
