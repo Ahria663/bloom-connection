@@ -18,14 +18,14 @@
     .font-serif{font-family:'Georgia',serif;}
     .font-sans{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
     .app{max-width:480px;margin:0 auto;padding:24px 16px 110px;position:relative;z-index:1;}
-
+ 
     /* header */
     .header{display:flex;align-items:center;justify-content:space-between;margin-bottom:26px;animation:fadeUp .5s ease both;}
     .logo{font-size:28px;font-weight:700;letter-spacing:-.5px;color:var(--text-dark);}
     .logo span{font-size:22px;margin-left:4px;}
     .logo-sub{font-size:11px;color:var(--text-soft);margin-top:1px;letter-spacing:.5px;font-family:-apple-system,sans-serif;}
     .guest-badge{display:flex;align-items:center;gap:6px;background:rgba(244,160,176,.15);border:1px solid rgba(244,160,176,.4);border-radius:20px;padding:6px 12px;font-family:-apple-system,sans-serif;font-size:12px;color:var(--rose-deep);font-weight:500;}
-
+ 
     /* now playing */
     .now-playing{background:linear-gradient(135deg,var(--rose-light) 0%,var(--lavender) 100%);border-radius:22px;padding:18px 20px;margin-bottom:22px;border:1px solid var(--glass-border);position:relative;overflow:hidden;animation:fadeUp .5s .1s both;}
     .np-glow{position:absolute;top:-40px;right:-40px;width:140px;height:140px;border-radius:50%;background:rgba(244,160,176,.18);pointer-events:none;}
@@ -42,7 +42,7 @@
     .progress-track{height:4px;background:rgba(224,96,122,.15);border-radius:4px;overflow:hidden;}
     .progress-fill{height:100%;background:linear-gradient(90deg,var(--rose),var(--rose-deep));border-radius:4px;transition:width .5s linear;}
     .progress-times{display:flex;justify-content:space-between;margin-top:5px;font-size:11px;color:var(--text-soft);font-family:-apple-system,sans-serif;}
-
+ 
     /* queue */
     .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
     .section-title{font-size:18px;font-weight:700;color:var(--text-dark);}
@@ -57,12 +57,12 @@
     .song-meta{font-size:11px;color:var(--text-soft);margin-top:2px;font-family:-apple-system,sans-serif;}
     .added-you{font-size:10px;font-weight:600;color:var(--rose-deep);background:rgba(224,96,122,.1);padding:1px 7px;border-radius:20px;font-family:-apple-system,sans-serif;margin-left:4px;}
     .empty{text-align:center;padding:40px 20px;color:var(--text-soft);font-family:-apple-system,sans-serif;font-size:14px;}
-
+ 
     /* FAB */
     .fab-add{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:50;background:linear-gradient(135deg,var(--rose),var(--rose-deep));border:none;border-radius:20px;padding:14px 32px;cursor:pointer;display:flex;align-items:center;gap:8px;color:#fff;font-family:-apple-system,sans-serif;font-weight:600;font-size:15px;box-shadow:0 8px 28px rgba(212,90,110,.38);transition:all .2s;white-space:nowrap;}
     .fab-add:hover{transform:translateX(-50%) scale(1.04);}
     .fab-add:disabled{opacity:.6;cursor:not-allowed;}
-
+ 
     /* sheet */
     .sheet-overlay{position:fixed;inset:0;background:rgba(45,26,34,.45);backdrop-filter:blur(8px);z-index:100;display:flex;align-items:flex-end;justify-content:center;animation:fadeIn .25s ease;}
     .sheet{background:var(--cream);border-radius:28px 28px 0 0;padding:24px 24px 36px;width:100%;max-width:500px;box-shadow:0 -16px 48px rgba(45,26,34,.15);animation:slideUp .3s ease;}
@@ -83,10 +83,10 @@
     .result-title{font-size:14px;font-weight:600;color:var(--text-dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
     .result-artist{font-size:12px;color:var(--text-soft);font-family:-apple-system,sans-serif;}
     .result-dur{font-size:12px;color:var(--text-soft);flex-shrink:0;font-family:-apple-system,sans-serif;}
-
+ 
     /* toast */
     .toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:200;background:linear-gradient(135deg,var(--rose),var(--rose-deep));color:#fff;border-radius:20px;padding:10px 22px;font-size:13px;font-weight:500;box-shadow:0 8px 28px rgba(212,90,110,.38);animation:popIn .3s ease;white-space:nowrap;font-family:-apple-system,sans-serif;display:none;}
-
+ 
     /* animations */
     @keyframes fadeUp{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:translateY(0);}}
     @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
@@ -101,9 +101,9 @@
   </style>
 </head>
 <body>
-
+ 
 <div class="app">
-
+ 
   <!-- HEADER -->
   <div class="header">
     <div>
@@ -112,7 +112,7 @@
     </div>
     <div class="guest-badge font-sans">🎵 Guest</div>
   </div>
-
+ 
   <!-- NOW PLAYING -->
   <div class="now-playing" id="nowPlaying">
     <div class="np-glow"></div>
@@ -138,27 +138,27 @@
       <div class="progress-times"><span id="progressTime">0:00</span><span id="progressTotal">0:00</span></div>
     </div>
   </div>
-
+ 
   <!-- QUEUE -->
   <div class="section-header">
     <div class="section-title font-serif">Up Next <span id="queueCount" style="font-size:13px;font-weight:400;font-family:-apple-system,sans-serif;color:var(--text-soft);margin-left:4px;"></span></div>
     <div class="section-hint font-sans">live queue ✦</div>
   </div>
   <div id="queue"></div>
-
+ 
 </div>
-
+ 
 <!-- FAB -->
 <button class="fab-add font-sans" onclick="openAdd()">
   <span style="font-size:20px;line-height:1;">+</span> Add Your Song
 </button>
-
+ 
 <!-- SHEET -->
 <div id="sheetEl" style="display:none;"></div>
-
+ 
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
-
+ 
 <script>
 // ─────────────────────────────────────────────────────────
 // CONFIG — swap these two lines after deploying to Vercel
@@ -175,7 +175,7 @@ let npProgress = 0, npDuration = 0, npPlaying = false;
 let progressTimer = null;
 let toastTimer = null;
 let searchTimer = null;
-
+ 
 // ── Toast ─────────────────────────────────────────────────
 function toast(msg, dur = 3000) {
   clearTimeout(toastTimer);
@@ -187,14 +187,14 @@ function toast(msg, dur = 3000) {
   t.style.animation = 'popIn .3s ease';
   toastTimer = setTimeout(() => { t.style.display = 'none'; }, dur);
 }
-
+ 
 // ── Now Playing ───────────────────────────────────────────
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function fmtMs(ms) {
   const s = Math.max(0, Math.floor((ms||0)/1000));
   return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
 }
-
+ 
 function applyNowPlaying(data) {
   const label  = document.getElementById('npLabel');
   const title  = document.getElementById('npTitle');
@@ -202,15 +202,15 @@ function applyNowPlaying(data) {
   const art    = document.getElementById('npArt');
   const artPh  = document.getElementById('npArtPh');
   const eq     = document.getElementById('npEq');
-
+ 
   npPlaying  = !!data.playing;
   npProgress = data.progress_ms || 0;
   npDuration = data.duration_ms || 0;
-
+ 
   label.textContent  = npPlaying ? 'Now Playing' : (data.title ? 'Paused' : 'Nothing playing');
   title.textContent  = data.title  || '—';
   artist.textContent = data.artist || 'Waiting for music to start…';
-
+ 
   if (data.art) {
     art.src = data.art;
     art.style.display = '';
@@ -219,11 +219,11 @@ function applyNowPlaying(data) {
     art.style.display = 'none';
     artPh.style.display = 'flex';
   }
-
+ 
   eq.classList.toggle('paused', !npPlaying);
   updateProgress();
 }
-
+ 
 function updateProgress() {
   const fill = document.getElementById('progressFill');
   const cur  = document.getElementById('progressTime');
@@ -234,7 +234,7 @@ function updateProgress() {
   cur.textContent  = fmtMs(p);
   tot.textContent  = fmtMs(d);
 }
-
+ 
 async function pollNowPlaying() {
   try {
     const r = await fetch(`${API_BASE}/api/now-playing`);
@@ -243,7 +243,7 @@ async function pollNowPlaying() {
     applyNowPlaying(data);
   } catch(e) {}
 }
-
+ 
 // Tick progress locally between polls
 function startProgressTick() {
   clearInterval(progressTimer);
@@ -254,10 +254,10 @@ function startProgressTick() {
     }
   }, 500);
 }
-
+ 
 // ── Supabase realtime queue ───────────────────────────────
 let supabaseQueue = [];
-
+ 
 async function fetchQueue() {
   try {
     const r = await fetch(
@@ -269,7 +269,7 @@ async function fetchQueue() {
     renderQueue();
   } catch(e) {}
 }
-
+ 
 function renderQueue() {
   const el = document.getElementById('queue');
   const countEl = document.getElementById('queueCount');
@@ -291,13 +291,13 @@ function renderQueue() {
       </div>
     </div>`).join('');
 }
-
+ 
 // Supabase realtime subscription
 function subscribeQueue() {
   // Use Supabase Realtime via WebSocket
   const wsUrl = SUPABASE_URL.replace('https://', 'wss://').replace('http://', 'ws://');
   const ws = new WebSocket(`${wsUrl}/realtime/v1/websocket?apikey=${SUPABASE_ANON}&vsn=1.0.0`);
-
+ 
   ws.onopen = () => {
     ws.send(JSON.stringify({
       topic: `realtime:public:${QUEUE_TABLE}`,
@@ -306,7 +306,7 @@ function subscribeQueue() {
       ref: '1',
     }));
   };
-
+ 
   ws.onmessage = (e) => {
     const msg = JSON.parse(e.data);
     if (msg.event === 'INSERT' || msg.event === 'UPDATE' || msg.event === 'DELETE') {
@@ -317,13 +317,13 @@ function subscribeQueue() {
       setTimeout(() => ws.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: '2' })), 25000);
     }
   };
-
+ 
   ws.onclose = () => {
     // Reconnect after 3s
     setTimeout(subscribeQueue, 3000);
   };
 }
-
+ 
 // ── Add Song Sheet ─────────────────────────────────────────
 function openAdd() {
   const sheet = document.getElementById('sheetEl');
@@ -349,14 +349,14 @@ function openAdd() {
       </div>
     </div>`;
 }
-
+ 
 function closeSheet(e) {
   if (!e || e.target.id === 'sheetOverlay') {
     document.getElementById('sheetEl').style.display = 'none';
     document.getElementById('sheetEl').innerHTML = '';
   }
 }
-
+ 
 function handleSearch(q) {
   clearTimeout(searchTimer);
   const hint = document.getElementById('searchHint');
@@ -369,7 +369,7 @@ function handleSearch(q) {
   if (hint) hint.style.display = 'none';
   searchTimer = setTimeout(() => doSearch(q), 350);
 }
-
+ 
 async function doSearch(q) {
   const res = document.getElementById('results');
   if (!res) return;
@@ -398,11 +398,11 @@ async function doSearch(q) {
     res.innerHTML = `<div style="text-align:center;padding:16px;color:var(--text-soft);font-size:13px;font-family:-apple-system,sans-serif;">Search unavailable — try again 🫧</div>`;
   }
 }
-
+ 
 async function addSong(song) {
   const el = document.getElementById(`ri-${song.id}`);
   if (el) el.classList.add('adding');
-
+ 
   try {
     const r = await fetch(`${API_BASE}/api/queue-add`, {
       method: 'POST',
@@ -419,11 +419,11 @@ async function addSong(song) {
     });
     const data = await r.json();
     if (!r.ok) throw new Error(data.error || 'Failed');
-
+ 
     // Track locally so we can label "you" in the queue
     myAddedUris.add(song.uri);
     localStorage.setItem('bloom_my_uris', JSON.stringify([...myAddedUris]));
-
+ 
     toast(`Added "${song.title}" 🌸`);
     closeSheet(null);
     fetchQueue(); // optimistic refresh
@@ -432,7 +432,7 @@ async function addSong(song) {
     if (el) el.classList.remove('adding');
   }
 }
-
+ 
 // ── Init ──────────────────────────────────────────────────
 (async function init() {
   await fetchQueue();

@@ -790,7 +790,12 @@ async function fetchNowPlaying(){
       tickNowPlayingFromCache();
       return;
     }
-    nowPlayingTrackUri = data.item.uri || null;
+    // If the track changed, clear the previous song from guest queue
+    const incomingUri = data.item.uri || null;
+    if (incomingUri && incomingUri !== nowPlayingTrackUri && nowPlayingTrackUri) {
+        clearPlayedSongFromQueue(nowPlayingTrackUri);
+    }
+    nowPlayingTrackUri = incomingUri;
     npLast = {
       item: data.item,
       progress_ms: data.progress_ms || 0,
@@ -1070,9 +1075,9 @@ async function doSearch(q){
 
     // ── QR Modal ───────────────────────────────────────────
     const BLOOM_INVITE_URL = 'https://bloom-connection-vznr.vercel.app';
- 
-        const BLOOM_QR_IMG = "data:image/png;base64,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";
- 
+
+    const BLOOM_QR_IMG = "data:image/png;base64,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";
+
     function openQR(){
         const m = document.getElementById('modals');
         m.innerHTML = `
@@ -1090,18 +1095,18 @@ async function doSearch(q){
       </div>
     </div>`;
     }
- 
+
     function closeModals(){ document.getElementById('modals').innerHTML=''; }
     function closeIfBackdrop(e,id){ if(e.target.id===id) closeModals(); }
- 
+
     // ── Supabase guest queue ───────────────────────────────
     // Fill in your Supabase project URL and anon key below.
     const SUPABASE_URL  = 'YOUR_SUPABASE_URL';   // e.g. https://xxxx.supabase.co
     const SUPABASE_ANON = 'YOUR_SUPABASE_ANON_KEY';
     const QUEUE_TABLE   = 'bloom_queue';
- 
+
     let guestQueueItems = []; // songs added by guests via guest.html
- 
+
     async function fetchGuestQueue() {
         if (!SUPABASE_URL || SUPABASE_URL.startsWith('YOUR_')) return;
         try {
@@ -1115,7 +1120,7 @@ async function doSearch(q){
             renderGuestQueue();
         } catch(e) {}
     }
- 
+
     function renderGuestQueue() {
         // Only shown when Spotify is NOT connected (demo mode).
         // When Spotify IS connected the live Spotify queue is shown instead,
@@ -1142,7 +1147,7 @@ async function doSearch(q){
         }
         if (added) renderQueue();
     }
- 
+
     function subscribeGuestQueue() {
         if (!SUPABASE_URL || SUPABASE_URL.startsWith('YOUR_')) return;
         const wsUrl = SUPABASE_URL.replace('https://', 'wss://').replace('http://', 'ws://');
@@ -1177,7 +1182,29 @@ async function doSearch(q){
         };
         ws.onclose = () => setTimeout(subscribeGuestQueue, 3000);
     }
- 
+
+    // ── Auto-clear played songs from Supabase ─────────────
+    // Called whenever now-playing changes. Deletes the song
+    // from bloom_queue so it vanishes from every guest screen.
+    let lastClearedUri = null;
+    function clearPlayedSongFromQueue(uri) {
+        if (!uri) return;
+        if (!SUPABASE_URL || SUPABASE_URL.startsWith('YOUR_')) return;
+        if (uri === lastClearedUri) return;
+        lastClearedUri = uri;
+        fetch(
+            `${SUPABASE_URL}/rest/v1/${QUEUE_TABLE}?uri=eq.${encodeURIComponent(uri)}`,
+            {
+                method: 'DELETE',
+                headers: {
+                    apikey: SUPABASE_ANON,
+                    Authorization: `Bearer ${SUPABASE_ANON}`,
+                },
+            }
+        ).catch(() => {});
+    }
+
+
     // ── Init ───────────────────────────────────────────────
     (async function init(){
         await handleOAuthCallback();
