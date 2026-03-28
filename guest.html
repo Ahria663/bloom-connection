@@ -459,7 +459,7 @@ async function addSong(song) {
 // ── Init ──────────────────────────────────────────────────
 (async function init() {
   if (!SESSION_ID) {
-    document.getElementById('queue').innerHTML = '<div class="empty">No session found. Please scan the host's QR code to join. 🌸</div>';
+    document.getElementById('queue').innerHTML = '<div class="empty">No session found. Please scan the host\'s QR code to join. 🌸</div>';
     document.getElementById('npTitle').textContent = 'No session';
     document.getElementById('npArtist').textContent = 'Scan the QR code to join a playlist';
     return;
