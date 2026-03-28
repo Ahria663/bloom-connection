@@ -227,7 +227,7 @@
  
     const CLIENT_ID = 'd3867244b6a646c490301a91fa564c11'; // replace with yours
     const REDIRECT = window.location.href.split('?')[0].split('#')[0];
-    const SCOPES = 'user-read-playback-state user-modify-playback-state user-read-currently-playing offline_access';
+    const SCOPES = 'user-read-playback-state user-modify-playback-state user-read-currently-playing';
  
     function generateRandomString(len) {
         const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -1120,16 +1120,20 @@ async function doSearch(q){
 
     async function createBloomSession(refreshToken) {
         try {
+            // If no refresh token from browser (Spotify only sends it on first auth),
+            // ask the server to create a session using the Spotify access token instead.
+            const payload = refreshToken
+                ? { refreshToken }
+                : { accessToken: spotifyToken };
             const r = await fetch('/api/session-create', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ refreshToken }),
+                body: JSON.stringify(payload),
             });
             if (!r.ok) return;
             const data = await r.json();
             bloomSessionId = data.sessionId;
             sessionStorage.setItem('bloom_session_id', bloomSessionId);
-            console.log('Bloom session created:', bloomSessionId);
         } catch(e) { console.error('Session create failed', e); }
     }
  
@@ -1244,11 +1248,11 @@ async function doSearch(q){
         }
         if(!spotifyToken) spotifyToken = sessionStorage.getItem('spotify_access_token');
 
-        // If we have a Spotify token but no Bloom session yet,
-        // create one now using the stored refresh token.
+        // If we have a Spotify token but no Bloom session, create one.
+        // Use refresh token if available, otherwise the access token.
         if (spotifyToken && !bloomSessionId) {
             const rt = sessionStorage.getItem('spotify_refresh_token');
-            if (rt) await createBloomSession(rt);
+            await createBloomSession(rt || null);
         }
 
         loadBloomHiddenQueueUris();
