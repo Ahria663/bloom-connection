@@ -61,6 +61,27 @@ function getLanIPv4() {
   return pick ? pick.address : null;
 }
 
+/**
+ * Under Vercel, rewrites send the browser path to /api, so req.url pathname is /api.
+ * vercel.json passes the real path as __bloom_path (see rewrite destination).
+ */
+function resolvePathname(req) {
+  const host = req.headers.host || 'localhost';
+  const parsed = new URL(req.url || '/', `http://${host}`);
+  const bridged = parsed.searchParams.get('__bloom_path');
+  if (bridged === null) return { ok: true, pathname: parsed.pathname };
+  let s = bridged.trim();
+  if (s === '') return { ok: true, pathname: '/' };
+  if (!s.startsWith('/')) s = `/${s}`;
+  try {
+    s = decodeURIComponent(s.replace(/\+/g, ' '));
+  } catch {
+    return { ok: false };
+  }
+  if (s.includes('\0') || s.includes('..')) return { ok: false };
+  return { ok: true, pathname: path.posix.normalize(s) };
+}
+
 /** Prefer OS LAN IP; if missing, use Host when the client already opened the site via a non-localhost address. */
 function computeLanOrigin(req) {
   const ip = getLanIPv4();
@@ -77,7 +98,13 @@ function computeLanOrigin(req) {
 
 const server = http.createServer((req, res) => {
   try {
-    const pathname = new URL(req.url || '/', `http://${req.headers.host}`).pathname;
+    const resolved = resolvePathname(req);
+    if (!resolved.ok) {
+      res.writeHead(403);
+      res.end('Forbidden');
+      return;
+    }
+    const { pathname } = resolved;
 
     if (pathname === '/__bloom/lan.json') {
       const origin = computeLanOrigin(req);
