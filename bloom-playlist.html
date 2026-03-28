@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://use.typekit.net/ksx6sxr.css">
     <title>Peanut Butter & Jam</title>
     <style>
         *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
@@ -171,7 +170,7 @@
     <!-- HEADER -->
     <div class="header">
         <div>
-            <div class="logo" style="font-family:'Fredoka One',cursive;font-size:26px;letter-spacing:.5px;">Peanut Butter & Jam</div>
+            <div class="logo" style="font-family:'plunct',sans-serif;font-weight:400;font-style:normal;font-size:28px;">Peanut Butter & Jam</div>
             <div class="logo-sub font-sans">collaborative playlist</div>
         </div>
         <div class="header-right" id="headerRight">
@@ -1465,11 +1464,13 @@ async function doSearch(q){
     // ── Push pending Supabase songs to Spotify ────────────
     // Catches any songs that were added to Supabase but missed by realtime
     let pushedUris = new Set();
+    let pushCutoffTime = new Date().toISOString();
+
     async function pushPendingToSpotify() {
         if (!spotifyToken || !bloomSessionId) return;
         try {
             const r = await fetch(
-                `${SUPABASE_URL}/rest/v1/${QUEUE_TABLE}?session_id=eq.${bloomSessionId}&select=uri&order=created_at.asc`,
+                `${SUPABASE_URL}/rest/v1/${QUEUE_TABLE}?session_id=eq.${bloomSessionId}&select=uri,created_at&order=created_at.asc&created_at=gt.${pushCutoffTime}`,
                 { headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` } }
             );
             if (!r.ok) return;
