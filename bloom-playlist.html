@@ -141,6 +141,24 @@
         @keyframes eq5{0%,100%{height:10px;}50%{height:20px;}}
         @keyframes cardIn{from{opacity:0;transform:translateX(-8px);}to{opacity:1;transform:translateX(0);}}
         .eq-bars.np-paused .eq-bar{animation-play-state:paused;opacity:.45;}
+
+        /* lyrics panel */
+        .lyrics-btn{background:transparent;border:1px solid rgba(217,92,116,.3);border-radius:20px;padding:3px 10px;font-family:-apple-system,sans-serif;font-size:10px;font-weight:600;color:var(--rose-deep);cursor:pointer;letter-spacing:.5px;transition:all .2s;margin-top:6px;display:inline-flex;align-items:center;gap:4px;}
+        .lyrics-btn:hover{background:var(--rose-light);}
+        .lyrics-panel{position:fixed;top:0;right:0;width:min(360px,92vw);height:100vh;background:var(--cream);box-shadow:-8px 0 32px rgba(45,26,34,.12);z-index:200;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .35s cubic-bezier(.22,1,.36,1);border-left:1px solid var(--glass-border);}
+        .lyrics-panel.open{transform:translateX(0);}
+        .lyrics-header{display:flex;align-items:center;justify-content:space-between;padding:20px 20px 14px;border-bottom:1px solid var(--glass-border);flex-shrink:0;}
+        .lyrics-song{flex:1;min-width:0;}
+        .lyrics-song-title{font-size:15px;font-weight:700;color:var(--text-dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+        .lyrics-song-artist{font-size:11px;color:var(--text-soft);font-family:-apple-system,sans-serif;margin-top:2px;}
+        .lyrics-close{background:var(--rose-light);border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:16px;color:var(--rose-deep);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .2s;}
+        .lyrics-close:hover{background:var(--rose);}
+        .lyrics-body{flex:1;overflow-y:auto;padding:24px 20px;-webkit-overflow-scrolling:touch;}
+        .lyrics-text{font-family:'Georgia',serif;font-size:15px;line-height:2;color:var(--text-dark);white-space:pre-wrap;}
+        .lyrics-loading{text-align:center;padding:40px 20px;color:var(--text-soft);font-family:-apple-system,sans-serif;font-size:13px;}
+        .lyrics-error{text-align:center;padding:40px 20px;color:var(--text-soft);font-family:-apple-system,sans-serif;font-size:13px;line-height:1.7;}
+        .lyrics-overlay{position:fixed;inset:0;z-index:199;background:rgba(45,26,34,.2);opacity:0;pointer-events:none;transition:opacity .35s;}
+        .lyrics-overlay.open{opacity:1;pointer-events:auto;}
     </style>
 </head>
 <body>
@@ -181,6 +199,7 @@
             <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:42%;"></div></div>
             <div class="progress-times"><span id="progressTime">1:14</span><span id="progressTotal">2:50</span></div>
         </div>
+        <button class="lyrics-btn font-sans" onclick="toggleLyrics()" id="lyricsBtn" style="display:none;">♪ Lyrics</button>
     </div>
  
     <!-- SPOTIFY CONNECT BANNER -->
@@ -201,6 +220,21 @@
  
 </div>
  
+<!-- Lyrics Panel -->
+<div class="lyrics-overlay" id="lyricsOverlay" onclick="closeLyrics()"></div>
+<div class="lyrics-panel" id="lyricsPanel">
+    <div class="lyrics-header">
+        <div class="lyrics-song">
+            <div class="lyrics-song-title" id="lyricsSongTitle">—</div>
+            <div class="lyrics-song-artist font-sans" id="lyricsSongArtist">—</div>
+        </div>
+        <button class="lyrics-close" onclick="closeLyrics()">✕</button>
+    </div>
+    <div class="lyrics-body">
+        <div id="lyricsContent" class="lyrics-loading">Loading lyrics…</div>
+    </div>
+</div>
+
 <!-- FABs -->
 <button class="fab-qr font-sans" onclick="openQR()">
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--rose-deep)" stroke-width="2.2" stroke-linecap="round">
@@ -754,11 +788,76 @@ function applySpotifyTrackToUI(item, isPlaying){
   if(eq) eq.classList.toggle('np-paused', !isPlaying);
   const artists = (item.artists || []).map(a => a.name).join(', ');
   const album = item.album?.name || '';
-  document.getElementById('npTitle').textContent = item.name || '—';
+  const title = item.name || '—';
+  document.getElementById('npTitle').textContent = title;
   document.getElementById('npArtist').textContent = album ? `${artists} · ${album}` : artists;
   const imgs = item.album?.images || [];
   const artUrl = imgs.find(i => i.width >= 300)?.url || imgs[0]?.url || '';
   setNpArt(artUrl || '');
+  // Show lyrics button and auto-fetch if panel is open
+  const btn = document.getElementById('lyricsBtn');
+  if(btn) btn.style.display = '';
+  const primaryArtist = (item.artists || [])[0]?.name || '';
+  currentLyricsTrack = { title, artist: primaryArtist };
+  if(document.getElementById('lyricsPanel')?.classList.contains('open')){
+    fetchLyrics(title, primaryArtist);
+  }
+}
+
+// ── Lyrics ─────────────────────────────────────────────
+let currentLyricsTrack = null;
+let lyricsOpen = false;
+
+function toggleLyrics(){
+  if(lyricsOpen) closeLyrics();
+  else openLyrics();
+}
+
+function openLyrics(){
+  lyricsOpen = true;
+  document.getElementById('lyricsPanel').classList.add('open');
+  document.getElementById('lyricsOverlay').classList.add('open');
+  if(currentLyricsTrack){
+    fetchLyrics(currentLyricsTrack.title, currentLyricsTrack.artist);
+  }
+}
+
+function closeLyrics(){
+  lyricsOpen = false;
+  document.getElementById('lyricsPanel').classList.remove('open');
+  document.getElementById('lyricsOverlay').classList.remove('open');
+}
+
+let lastLyricsFetch = '';
+async function fetchLyrics(title, artist){
+  if(!title || !artist) return;
+  const key = title + '||' + artist;
+  if(key === lastLyricsFetch) return; // already showing these
+  lastLyricsFetch = key;
+
+  // Update panel header
+  document.getElementById('lyricsSongTitle').textContent = title;
+  document.getElementById('lyricsSongArtist').textContent = artist;
+
+  const content = document.getElementById('lyricsContent');
+  content.className = 'lyrics-loading';
+  content.textContent = 'Loading lyrics…';
+
+  try {
+    // Clean up title — remove feat., (with ...), etc for better API match
+    const cleanTitle = title.replace(/\s*[\(\[].*?[\)\]]/g, '').trim();
+    const cleanArtist = artist.split(',')[0].trim();
+    const url = `https://api.lyrics.ovh/v1/${encodeURIComponent(cleanArtist)}/${encodeURIComponent(cleanTitle)}`;
+    const r = await fetch(url);
+    if(!r.ok) throw new Error('not found');
+    const data = await r.json();
+    if(!data.lyrics) throw new Error('no lyrics');
+    content.className = 'lyrics-text';
+    content.textContent = data.lyrics.trim();
+  } catch(e) {
+    content.className = 'lyrics-error';
+    content.innerHTML = `Lyrics not found for<br><strong>${esc(title)}</strong><br><br><span style="font-size:11px;">Try searching on <a href="https://genius.com/search?q=${encodeURIComponent(title+' '+artist)}" target="_blank" style="color:var(--rose-deep);">Genius</a></span>`;
+  }
 }
  
 async function fetchNowPlaying(){
