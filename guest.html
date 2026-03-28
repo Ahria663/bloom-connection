@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bloom — Add Your Song 🌸</title>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    :root{
+      --rose:#f4a0b0;--rose-light:#fde8ed;--rose-deep:#d95c74;
+      --blush:#fdf0f3;--cream:#fefaf7;--petal:#f9e4ec;--lavender:#ede6f7;
+      --text-dark:#2d1a22;--text-mid:#7a4a5c;--text-soft:#c09aaa;
+      --glass:rgba(255,255,255,0.72);--glass-border:rgba(244,160,176,0.35);
+      --green:#1DB954;
+    }
+    body{font-family:'Georgia',serif;background:var(--blush);color:var(--text-dark);min-height:100vh;overflow-x:hidden;}
+    body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 20% 10%,rgba(244,160,176,0.22) 0%,transparent 55%),radial-gradient(ellipse at 80% 80%,rgba(237,230,247,0.28) 0%,transparent 55%),radial-gradient(ellipse at 60% 30%,rgba(249,228,236,0.18) 0%,transparent 45%);pointer-events:none;z-index:0;}
+    .font-serif{font-family:'Georgia',serif;}
+    .font-sans{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
+    .app{max-width:480px;margin:0 auto;padding:24px 16px 110px;position:relative;z-index:1;}
+
+    /* header */
+    .header{display:flex;align-items:center;justify-content:space-between;margin-bottom:26px;animation:fadeUp .5s ease both;}
+    .logo{font-size:28px;font-weight:700;letter-spacing:-.5px;color:var(--text-dark);}
+    .logo span{font-size:22px;margin-left:4px;}
+    .logo-sub{font-size:11px;color:var(--text-soft);margin-top:1px;letter-spacing:.5px;font-family:-apple-system,sans-serif;}
+    .guest-badge{display:flex;align-items:center;gap:6px;background:rgba(244,160,176,.15);border:1px solid rgba(244,160,176,.4);border-radius:20px;padding:6px 12px;font-family:-apple-system,sans-serif;font-size:12px;color:var(--rose-deep);font-weight:500;}
+
+    /* now playing */
+    .now-playing{background:linear-gradient(135deg,var(--rose-light) 0%,var(--lavender) 100%);border-radius:22px;padding:18px 20px;margin-bottom:22px;border:1px solid var(--glass-border);position:relative;overflow:hidden;animation:fadeUp .5s .1s both;}
+    .np-glow{position:absolute;top:-40px;right:-40px;width:140px;height:140px;border-radius:50%;background:rgba(244,160,176,.18);pointer-events:none;}
+    .np-inner{display:flex;align-items:center;gap:14px;position:relative;}
+    .np-art{width:62px;height:62px;border-radius:14px;object-fit:cover;flex-shrink:0;border:2px solid rgba(255,255,255,.7);background:linear-gradient(135deg,var(--rose),var(--rose-deep));}
+    .np-art-placeholder{width:62px;height:62px;border-radius:14px;flex-shrink:0;background:linear-gradient(135deg,var(--rose),var(--rose-deep));display:flex;align-items:center;justify-content:center;font-size:24px;border:2px solid rgba(255,255,255,.7);}
+    .np-label{font-size:10px;font-weight:600;letter-spacing:1.8px;text-transform:uppercase;color:var(--rose-deep);background:rgba(224,96,122,.1);padding:2px 8px;border-radius:20px;display:inline-block;margin-bottom:5px;font-family:-apple-system,sans-serif;}
+    .np-title{font-size:17px;font-weight:700;color:var(--text-dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .np-artist{font-size:12px;color:var(--text-mid);margin-top:2px;font-family:-apple-system,sans-serif;}
+    .eq-bars{display:flex;align-items:flex-end;gap:3px;height:22px;flex-shrink:0;}
+    .eq-bar{width:4px;border-radius:3px;background:var(--rose-deep);}
+    .eq-bars.paused .eq-bar{animation-play-state:paused;opacity:.45;}
+    .np-progress{margin-top:14px;}
+    .progress-track{height:4px;background:rgba(224,96,122,.15);border-radius:4px;overflow:hidden;}
+    .progress-fill{height:100%;background:linear-gradient(90deg,var(--rose),var(--rose-deep));border-radius:4px;transition:width .5s linear;}
+    .progress-times{display:flex;justify-content:space-between;margin-top:5px;font-size:11px;color:var(--text-soft);font-family:-apple-system,sans-serif;}
+
+    /* queue */
+    .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+    .section-title{font-size:18px;font-weight:700;color:var(--text-dark);}
+    .section-hint{font-size:11px;color:var(--text-soft);font-family:-apple-system,sans-serif;font-style:italic;}
+    .song-card{display:flex;align-items:center;gap:12px;background:var(--glass);backdrop-filter:blur(10px);border-radius:16px;padding:11px 14px;border:1px solid var(--glass-border);margin-bottom:10px;animation:cardIn .35s both;}
+    .song-card.top{background:linear-gradient(135deg,var(--rose-light),var(--petal));border-color:rgba(224,96,122,.22);box-shadow:0 4px 20px rgba(224,96,122,.12);}
+    .song-rank{font-size:12px;font-weight:600;color:var(--text-soft);min-width:18px;text-align:center;font-family:-apple-system,sans-serif;}
+    .song-art{width:46px;height:46px;border-radius:10px;object-fit:cover;flex-shrink:0;background:linear-gradient(135deg,var(--rose),var(--lavender));}
+    .song-art-ph{width:46px;height:46px;border-radius:10px;flex-shrink:0;background:linear-gradient(135deg,var(--rose),var(--lavender));display:flex;align-items:center;justify-content:center;font-size:18px;}
+    .song-info{flex:1;min-width:0;}
+    .song-title{font-size:14px;font-weight:600;color:var(--text-dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .song-meta{font-size:11px;color:var(--text-soft);margin-top:2px;font-family:-apple-system,sans-serif;}
+    .added-you{font-size:10px;font-weight:600;color:var(--rose-deep);background:rgba(224,96,122,.1);padding:1px 7px;border-radius:20px;font-family:-apple-system,sans-serif;margin-left:4px;}
+    .empty{text-align:center;padding:40px 20px;color:var(--text-soft);font-family:-apple-system,sans-serif;font-size:14px;}
+
+    /* FAB */
+    .fab-add{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:50;background:linear-gradient(135deg,var(--rose),var(--rose-deep));border:none;border-radius:20px;padding:14px 32px;cursor:pointer;display:flex;align-items:center;gap:8px;color:#fff;font-family:-apple-system,sans-serif;font-weight:600;font-size:15px;box-shadow:0 8px 28px rgba(212,90,110,.38);transition:all .2s;white-space:nowrap;}
+    .fab-add:hover{transform:translateX(-50%) scale(1.04);}
+    .fab-add:disabled{opacity:.6;cursor:not-allowed;}
+
+    /* sheet */
+    .sheet-overlay{position:fixed;inset:0;background:rgba(45,26,34,.45);backdrop-filter:blur(8px);z-index:100;display:flex;align-items:flex-end;justify-content:center;animation:fadeIn .25s ease;}
+    .sheet{background:var(--cream);border-radius:28px 28px 0 0;padding:24px 24px 36px;width:100%;max-width:500px;box-shadow:0 -16px 48px rgba(45,26,34,.15);animation:slideUp .3s ease;}
+    .sheet-handle{width:40px;height:4px;background:rgba(244,160,176,.4);border-radius:4px;margin:0 auto 20px;}
+    .sheet-title{font-size:20px;font-weight:700;color:var(--text-dark);margin-bottom:16px;}
+    .name-row{display:flex;gap:10px;margin-bottom:14px;}
+    .name-input{flex:1;padding:11px 14px;border:1.5px solid var(--glass-border);border-radius:14px;font-family:-apple-system,sans-serif;font-size:14px;background:var(--blush);color:var(--text-dark);outline:none;transition:border-color .2s;}
+    .name-input:focus{border-color:var(--rose);}
+    .search-wrap{position:relative;margin-bottom:14px;}
+    .search-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-soft);font-size:15px;}
+    .search-input{width:100%;padding:12px 14px 12px 40px;border:1.5px solid var(--glass-border);border-radius:14px;font-family:-apple-system,sans-serif;font-size:14px;background:var(--blush);color:var(--text-dark);outline:none;transition:border-color .2s;}
+    .search-input:focus{border-color:var(--rose);}
+    .results-list{display:flex;flex-direction:column;gap:8px;max-height:280px;overflow-y:auto;}
+    .result-item{display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--blush);border-radius:14px;cursor:pointer;border:1px solid var(--glass-border);transition:background .2s;}
+    .result-item:hover{background:var(--rose-light);}
+    .result-item.adding{opacity:.6;pointer-events:none;}
+    .result-art{width:42px;height:42px;border-radius:8px;flex-shrink:0;background:linear-gradient(135deg,var(--rose),var(--lavender));display:flex;align-items:center;justify-content:center;font-size:16px;}
+    .result-title{font-size:14px;font-weight:600;color:var(--text-dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .result-artist{font-size:12px;color:var(--text-soft);font-family:-apple-system,sans-serif;}
+    .result-dur{font-size:12px;color:var(--text-soft);flex-shrink:0;font-family:-apple-system,sans-serif;}
+
+    /* toast */
+    .toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:200;background:linear-gradient(135deg,var(--rose),var(--rose-deep));color:#fff;border-radius:20px;padding:10px 22px;font-size:13px;font-weight:500;box-shadow:0 8px 28px rgba(212,90,110,.38);animation:popIn .3s ease;white-space:nowrap;font-family:-apple-system,sans-serif;display:none;}
+
+    /* animations */
+    @keyframes fadeUp{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:translateY(0);}}
+    @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+    @keyframes popIn{from{opacity:0;transform:scale(.92) translateX(-50%);}to{opacity:1;transform:scale(1) translateX(-50%);}}
+    @keyframes slideUp{from{opacity:0;transform:translateY(40px);}to{opacity:1;transform:translateY(0);}}
+    @keyframes cardIn{from{opacity:0;transform:translateX(-8px);}to{opacity:1;transform:translateX(0);}}
+    @keyframes eq1{0%,100%{height:6px;}50%{height:18px;}}
+    @keyframes eq2{0%,100%{height:12px;}50%{height:6px;}}
+    @keyframes eq3{0%,100%{height:8px;}50%{height:16px;}}
+    @keyframes eq4{0%,100%{height:16px;}50%{height:8px;}}
+    @keyframes eq5{0%,100%{height:10px;}50%{height:20px;}}
+  </style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div>
+      <div class="logo font-serif">Bloom <span>🌸</span></div>
+      <div class="logo-sub font-sans">collaborative playlist</div>
+    </div>
+    <div class="guest-badge font-sans">🎵 Guest</div>
+  </div>
+
+  <!-- NOW PLAYING -->
+  <div class="now-playing" id="nowPlaying">
+    <div class="np-glow"></div>
+    <div class="np-inner">
+      <div class="np-art-placeholder" id="npArtPh">🎵</div>
+      <img class="np-art" id="npArt" style="display:none;" alt="album art"
+        onerror="this.style.display='none';document.getElementById('npArtPh').style.display='flex'" />
+      <div style="flex:1;min-width:0;">
+        <div class="np-label font-sans" id="npLabel">Loading</div>
+        <div class="np-title font-serif" id="npTitle">—</div>
+        <div class="np-artist font-sans" id="npArtist">Connecting to the playlist…</div>
+      </div>
+      <div class="eq-bars paused" id="npEq">
+        <div class="eq-bar" style="animation:eq1 .7s ease-in-out infinite;height:6px;"></div>
+        <div class="eq-bar" style="animation:eq2 .6s ease-in-out infinite;height:12px;"></div>
+        <div class="eq-bar" style="animation:eq3 .8s ease-in-out infinite;height:8px;"></div>
+        <div class="eq-bar" style="animation:eq4 .65s ease-in-out infinite;height:16px;"></div>
+        <div class="eq-bar" style="animation:eq5 .75s ease-in-out infinite;height:10px;"></div>
+      </div>
+    </div>
+    <div class="np-progress">
+      <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+      <div class="progress-times"><span id="progressTime">0:00</span><span id="progressTotal">0:00</span></div>
+    </div>
+  </div>
+
+  <!-- QUEUE -->
+  <div class="section-header">
+    <div class="section-title font-serif">Up Next <span id="queueCount" style="font-size:13px;font-weight:400;font-family:-apple-system,sans-serif;color:var(--text-soft);margin-left:4px;"></span></div>
+    <div class="section-hint font-sans">live queue ✦</div>
+  </div>
+  <div id="queue"></div>
+
+</div>
+
+<!-- FAB -->
+<button class="fab-add font-sans" onclick="openAdd()">
+  <span style="font-size:20px;line-height:1;">+</span> Add Your Song
+</button>
+
+<!-- SHEET -->
+<div id="sheetEl" style="display:none;"></div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ─────────────────────────────────────────────────────────
+// CONFIG — swap these two lines after deploying to Vercel
+// ─────────────────────────────────────────────────────────
+const API_BASE   = 'https://bloom-connection-vznr.vercel.app'; // your Vercel URL
+const SUPABASE_URL  = 'https://wbtbkqczxttkntjzafgq.supabase.co';   // e.g. https://xxxx.supabase.co
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndidGJrcWN6eHR0a250anphZmdxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2NTkzMTAsImV4cCI6MjA5MDIzNTMxMH0.81yC0IWVll9ktKJyciKnC-bsO9atFydvszES_zzo-4k';
+const QUEUE_TABLE   = 'bloom_queue';
+
+// ── State ─────────────────────────────────────────────────
+let guestName = localStorage.getItem('bloom_guest_name') || '';
+let myAddedUris = new Set(JSON.parse(localStorage.getItem('bloom_my_uris') || '[]'));
+let npProgress = 0, npDuration = 0, npPlaying = false;
+let progressTimer = null;
+let toastTimer = null;
+let searchTimer = null;
+
+// ── Toast ─────────────────────────────────────────────────
+function toast(msg, dur = 3000) {
+  clearTimeout(toastTimer);
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  t.style.animation = 'none';
+  void t.offsetWidth;
+  t.style.animation = 'popIn .3s ease';
+  toastTimer = setTimeout(() => { t.style.display = 'none'; }, dur);
+}
+
+// ── Now Playing ───────────────────────────────────────────
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmtMs(ms) {
+  const s = Math.max(0, Math.floor((ms||0)/1000));
+  return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+}
+
+function applyNowPlaying(data) {
+  const label  = document.getElementById('npLabel');
+  const title  = document.getElementById('npTitle');
+  const artist = document.getElementById('npArtist');
+  const art    = document.getElementById('npArt');
+  const artPh  = document.getElementById('npArtPh');
+  const eq     = document.getElementById('npEq');
+
+  npPlaying  = !!data.playing;
+  npProgress = data.progress_ms || 0;
+  npDuration = data.duration_ms || 0;
+
+  label.textContent  = npPlaying ? 'Now Playing' : (data.title ? 'Paused' : 'Nothing playing');
+  title.textContent  = data.title  || '—';
+  artist.textContent = data.artist || 'Waiting for music to start…';
+
+  if (data.art) {
+    art.src = data.art;
+    art.style.display = '';
+    artPh.style.display = 'none';
+  } else {
+    art.style.display = 'none';
+    artPh.style.display = 'flex';
+  }
+
+  eq.classList.toggle('paused', !npPlaying);
+  updateProgress();
+}
+
+function updateProgress() {
+  const fill = document.getElementById('progressFill');
+  const cur  = document.getElementById('progressTime');
+  const tot  = document.getElementById('progressTotal');
+  const d = npDuration || 1;
+  const p = Math.min(npProgress, d);
+  fill.style.width = `${(p/d)*100}%`;
+  cur.textContent  = fmtMs(p);
+  tot.textContent  = fmtMs(d);
+}
+
+async function pollNowPlaying() {
+  try {
+    const r = await fetch(`${API_BASE}/api/now-playing`);
+    if (!r.ok) return;
+    const data = await r.json();
+    applyNowPlaying(data);
+  } catch(e) {}
+}
+
+// Tick progress locally between polls
+function startProgressTick() {
+  clearInterval(progressTimer);
+  progressTimer = setInterval(() => {
+    if (npPlaying && npDuration) {
+      npProgress = Math.min(npProgress + 500, npDuration);
+      updateProgress();
+    }
+  }, 500);
+}
+
+// ── Supabase realtime queue ───────────────────────────────
+let supabaseQueue = [];
+
+async function fetchQueue() {
+  try {
+    const r = await fetch(
+      `${SUPABASE_URL}/rest/v1/${QUEUE_TABLE}?select=*&order=created_at.asc`,
+      { headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` } }
+    );
+    if (!r.ok) return;
+    supabaseQueue = await r.json();
+    renderQueue();
+  } catch(e) {}
+}
+
+function renderQueue() {
+  const el = document.getElementById('queue');
+  const countEl = document.getElementById('queueCount');
+  if (!supabaseQueue.length) {
+    el.innerHTML = '<div class="empty">Nothing queued yet — be the first! 🌸</div>';
+    countEl.textContent = '';
+    return;
+  }
+  countEl.textContent = `${supabaseQueue.length} songs`;
+  el.innerHTML = supabaseQueue.map((s, i) => `
+    <div class="song-card ${i===0?'top':''}" style="animation-delay:${i*0.04}s">
+      <span class="song-rank font-sans">#${i+1}</span>
+      ${s.art
+        ? `<img class="song-art" src="${esc(s.art)}" alt="" onerror="this.outerHTML='<div class=\\'song-art-ph\\'>🎵</div>'" />`
+        : `<div class="song-art-ph">🎵</div>`}
+      <div class="song-info">
+        <div class="song-title font-serif">${esc(s.title)}</div>
+        <div class="song-meta font-sans">${esc(s.artist)}${s.added_by ? ` · ${esc(s.added_by)}` : ''}${myAddedUris.has(s.uri) ? '<span class="added-you">you</span>' : ''}</div>
+      </div>
+    </div>`).join('');
+}
+
+// Supabase realtime subscription
+function subscribeQueue() {
+  // Use Supabase Realtime via WebSocket
+  const wsUrl = SUPABASE_URL.replace('https://', 'wss://').replace('http://', 'ws://');
+  const ws = new WebSocket(`${wsUrl}/realtime/v1/websocket?apikey=${SUPABASE_ANON}&vsn=1.0.0`);
+
+  ws.onopen = () => {
+    ws.send(JSON.stringify({
+      topic: `realtime:public:${QUEUE_TABLE}`,
+      event: 'phx_join',
+      payload: { config: { broadcast: { self: true }, presence: { key: '' } } },
+      ref: '1',
+    }));
+  };
+
+  ws.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    if (msg.event === 'INSERT' || msg.event === 'UPDATE' || msg.event === 'DELETE') {
+      fetchQueue(); // re-fetch on any change
+    }
+    // heartbeat
+    if (msg.event === 'phx_reply' && msg.payload?.status === 'ok') {
+      setTimeout(() => ws.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: '2' })), 25000);
+    }
+  };
+
+  ws.onclose = () => {
+    // Reconnect after 3s
+    setTimeout(subscribeQueue, 3000);
+  };
+}
+
+// ── Add Song Sheet ─────────────────────────────────────────
+function openAdd() {
+  const sheet = document.getElementById('sheetEl');
+  sheet.style.display = 'block';
+  sheet.innerHTML = `
+    <div class="sheet-overlay" id="sheetOverlay" onclick="closeSheet(event)">
+      <div class="sheet" onclick="event.stopPropagation()">
+        <div class="sheet-handle"></div>
+        <div class="sheet-title font-serif">Add a Song ✨</div>
+        <div class="name-row">
+          <input class="name-input font-sans" id="nameInput" placeholder="Your name (optional)"
+            value="${esc(guestName)}" oninput="guestName=this.value;localStorage.setItem('bloom_guest_name',this.value)" />
+        </div>
+        <div class="search-wrap">
+          <span class="search-icon">♪</span>
+          <input class="search-input font-sans" id="searchInput" placeholder="Search for a song or artist…"
+            oninput="handleSearch(this.value)" autocomplete="off" autofocus />
+        </div>
+        <div id="searchHint" style="text-align:center;padding:20px;color:var(--text-soft);font-size:13px;font-family:-apple-system,sans-serif;">
+          Type to search 🎶
+        </div>
+        <div class="results-list" id="results"></div>
+      </div>
+    </div>`;
+}
+
+function closeSheet(e) {
+  if (!e || e.target.id === 'sheetOverlay') {
+    document.getElementById('sheetEl').style.display = 'none';
+    document.getElementById('sheetEl').innerHTML = '';
+  }
+}
+
+function handleSearch(q) {
+  clearTimeout(searchTimer);
+  const hint = document.getElementById('searchHint');
+  const res  = document.getElementById('results');
+  if (!q.trim()) {
+    if (res) res.innerHTML = '';
+    if (hint) { hint.style.display = 'block'; hint.textContent = 'Type to search 🎶'; }
+    return;
+  }
+  if (hint) hint.style.display = 'none';
+  searchTimer = setTimeout(() => doSearch(q), 350);
+}
+
+async function doSearch(q) {
+  const res = document.getElementById('results');
+  if (!res) return;
+  res.innerHTML = `<div style="text-align:center;padding:16px;color:var(--text-soft);font-size:13px;font-family:-apple-system,sans-serif;">Searching…</div>`;
+  try {
+    const r = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(q)}`);
+    if (!r.ok) throw new Error('search failed');
+    const data = await r.json();
+    const tracks = data.tracks || [];
+    if (!tracks.length) {
+      res.innerHTML = `<div style="text-align:center;padding:16px;color:var(--text-soft);font-size:13px;font-family:-apple-system,sans-serif;">No results found 🫧</div>`;
+      return;
+    }
+    res.innerHTML = tracks.map(t => `
+      <div class="result-item" id="ri-${t.id}" onclick="addSong(${JSON.stringify(t).replace(/"/g,'&quot;')})">
+        ${t.art
+          ? `<img style="width:42px;height:42px;border-radius:8px;object-fit:cover;flex-shrink:0;" src="${esc(t.art)}" alt="" />`
+          : `<div class="result-art">🎵</div>`}
+        <div style="flex:1;min-width:0;">
+          <div class="result-title">${esc(t.title)}</div>
+          <div class="result-artist">${esc(t.artist)}</div>
+        </div>
+        <div class="result-dur font-sans">${esc(t.dur)}</div>
+      </div>`).join('');
+  } catch(e) {
+    res.innerHTML = `<div style="text-align:center;padding:16px;color:var(--text-soft);font-size:13px;font-family:-apple-system,sans-serif;">Search unavailable — try again 🫧</div>`;
+  }
+}
+
+async function addSong(song) {
+  const el = document.getElementById(`ri-${song.id}`);
+  if (el) el.classList.add('adding');
+
+  try {
+    const r = await fetch(`${API_BASE}/api/queue-add`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        uri:      song.uri,
+        title:    song.title,
+        artist:   song.artist,
+        art:      song.art,
+        album:    song.album,
+        dur:      song.dur,
+        addedBy:  guestName ? `@${guestName.replace(/^@/, '')}` : 'guest',
+      }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Failed');
+
+    // Track locally so we can label "you" in the queue
+    myAddedUris.add(song.uri);
+    localStorage.setItem('bloom_my_uris', JSON.stringify([...myAddedUris]));
+
+    toast(`Added "${song.title}" 🌸`);
+    closeSheet(null);
+    fetchQueue(); // optimistic refresh
+  } catch(e) {
+    toast('Could not add song — try again');
+    if (el) el.classList.remove('adding');
+  }
+}
+
+// ── Init ──────────────────────────────────────────────────
+(async function init() {
+  await fetchQueue();
+  await pollNowPlaying();
+  startProgressTick();
+  subscribeQueue();
+  setInterval(pollNowPlaying, 5000);
+})();
+</script>
+</body>
+</html>

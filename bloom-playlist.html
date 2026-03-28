@@ -1094,6 +1094,90 @@ async function doSearch(q){
     function closeModals(){ document.getElementById('modals').innerHTML=''; }
     function closeIfBackdrop(e,id){ if(e.target.id===id) closeModals(); }
 
+    // ── Supabase guest queue ───────────────────────────────
+    // Fill in your Supabase project URL and anon key below.
+    const SUPABASE_URL  = 'Yhttps://wbtbkqczxttkntjzafgq.supabase.co';   // e.g. https://xxxx.supabase.co
+    const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndidGJrcWN6eHR0a250anphZmdxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2NTkzMTAsImV4cCI6MjA5MDIzNTMxMH0.81yC0IWVll9ktKJyciKnC-bsO9atFydvszES_zzo-4k';
+    const QUEUE_TABLE   = 'bloom_queue';
+
+    let guestQueueItems = []; // songs added by guests via guest.html
+
+    async function fetchGuestQueue() {
+        if (!SUPABASE_URL || SUPABASE_URL.startsWith('YOUR_')) return;
+        try {
+            const r = await fetch(
+                `${SUPABASE_URL}/rest/v1/${QUEUE_TABLE}?select=*&order=created_at.asc`,
+                { headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` } }
+            );
+            if (!r.ok) return;
+            const rows = await r.json();
+            guestQueueItems = rows;
+            renderGuestQueue();
+        } catch(e) {}
+    }
+
+    function renderGuestQueue() {
+        // Only shown when Spotify is NOT connected (demo mode).
+        // When Spotify IS connected the live Spotify queue is shown instead,
+        // and guest songs are pushed directly to Spotify via /api/queue-add.
+        if (spotifyToken) return;
+        // Merge guest items into local songs array (deduplicate by uri)
+        const existingUris = new Set(songs.map(s => s.uri));
+        let added = false;
+        for (const row of guestQueueItems) {
+            if (!existingUris.has(row.uri)) {
+                songs.push({
+                    id: row.id || row.uri,
+                    uri: row.uri,
+                    title: row.title,
+                    artist: row.artist || '',
+                    art: row.art || '',
+                    dur: row.dur || '',
+                    votes: row.votes || 0,
+                    by: row.added_by || 'guest',
+                });
+                existingUris.add(row.uri);
+                added = true;
+            }
+        }
+        if (added) renderQueue();
+    }
+
+    function subscribeGuestQueue() {
+        if (!SUPABASE_URL || SUPABASE_URL.startsWith('YOUR_')) return;
+        const wsUrl = SUPABASE_URL.replace('https://', 'wss://').replace('http://', 'ws://');
+        const ws = new WebSocket(`${wsUrl}/realtime/v1/websocket?apikey=${SUPABASE_ANON}&vsn=1.0.0`);
+        ws.onopen = () => {
+            ws.send(JSON.stringify({
+                topic: `realtime:public:${QUEUE_TABLE}`,
+                event: 'phx_join',
+                payload: { config: { broadcast: { self: true }, presence: { key: '' } } },
+                ref: '1',
+            }));
+        };
+        ws.onmessage = (e) => {
+            const msg = JSON.parse(e.data);
+            if (msg.event === 'INSERT') {
+                const row = msg.payload?.record;
+                if (row) {
+                    toast(`🌸 ${row.added_by || 'A guest'} added "${row.title}"`);
+                    fetchGuestQueue();
+                    // If Spotify is connected, also queue it there
+                    if (spotifyToken && row.uri) {
+                        spotifyApiFetch(
+                            `https://api.spotify.com/v1/me/player/queue?uri=${encodeURIComponent(row.uri)}`,
+                            { method: 'POST' }
+                        ).catch(() => {});
+                    }
+                }
+            }
+            if (msg.event === 'phx_reply' && msg.payload?.status === 'ok') {
+                setTimeout(() => ws.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: '2' })), 25000);
+            }
+        };
+        ws.onclose = () => setTimeout(subscribeGuestQueue, 3000);
+    }
+
     // ── Init ───────────────────────────────────────────────
     (async function init(){
         await handleOAuthCallback();
@@ -1111,6 +1195,8 @@ async function doSearch(q){
         loadBloomHiddenQueueUris();
         render();
         startNowPlayingOrDemo();
+        fetchGuestQueue();
+        subscribeGuestQueue();
     })();
 </script>
 </body>
