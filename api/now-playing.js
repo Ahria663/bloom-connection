@@ -1,42 +1,33 @@
 // api/now-playing.js
-const tokenCache = {};
+let cachedToken = null;
+let tokenExpiry = 0;
 
 async function getAccessToken(refreshToken) {
-  const cached = tokenCache[refreshToken];
-  if (cached && Date.now() < cached.expiry - 60000) return cached.token;
+  if (cachedToken && Date.now() < tokenExpiry - 60000) return cachedToken;
   const creds = Buffer.from(process.env.SPOTIFY_CLIENT_ID + ':' + process.env.SPOTIFY_CLIENT_SECRET).toString('base64');
   const res = await fetch('https://accounts.spotify.com/api/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Authorization': 'Basic ' + creds },
     body: 'grant_type=refresh_token&refresh_token=' + encodeURIComponent(refreshToken),
   });
-  if (!res.ok) throw new Error('Token refresh failed');
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error('Token refresh failed ' + res.status + ': ' + txt);
+  }
   const data = await res.json();
-  tokenCache[refreshToken] = { token: data.access_token, expiry: Date.now() + data.expires_in * 1000 };
-  return data.access_token;
-}
-
-async function getSessionToken(sessionId) {
-  const url = process.env.SUPABASE_URL + '/rest/v1/bloom_sessions?id=eq.' + encodeURIComponent(sessionId) + '&select=refresh_token';
-  const r = await fetch(url, {
-    headers: { 'apikey': process.env.SUPABASE_SERVICE_KEY, 'Authorization': 'Bearer ' + process.env.SUPABASE_SERVICE_KEY }
-  });
-  if (!r.ok) throw new Error('Session fetch failed');
-  const rows = await r.json();
-  if (!rows.length) throw new Error('Session not found');
-  return rows[0].refresh_token;
+  cachedToken = data.access_token;
+  tokenExpiry = Date.now() + data.expires_in * 1000;
+  return cachedToken;
 }
 
 module.exports = async function(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const sessionId = (req.query.session || '').trim();
+  // Always use the server's master refresh token — simpler and reliable
+  const refreshToken = process.env.SPOTIFY_REFRESH_TOKEN;
+
   try {
-    let refreshToken = process.env.SPOTIFY_REFRESH_TOKEN;
-    if (sessionId) {
-      try { refreshToken = await getSessionToken(sessionId); } catch(e) {}
-    }
     const token = await getAccessToken(refreshToken);
     const r = await fetch('https://api.spotify.com/v1/me/player/currently-playing', {
       headers: { 'Authorization': 'Bearer ' + token }

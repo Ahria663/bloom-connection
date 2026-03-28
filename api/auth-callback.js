@@ -2,7 +2,7 @@
 // Spotify redirects here after you approve access.
 // It exchanges the code for tokens and displays your refresh token on screen.
 
-export default async function handler(req, res) {
+module.exports = async function(req, res) {
     const { code, error } = req.query;
   
     if (error) {
