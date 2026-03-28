@@ -62,8 +62,7 @@ function getLanIPv4() {
 }
 
 /**
- * Under Vercel, rewrites send the browser path to /api, so req.url pathname is /api.
- * vercel.json passes the real path as __bloom_path (see rewrite destination).
+ * Under Vercel, rewrites send traffic to /api; the real path is in __bloom_path.
  */
 function resolvePathname(req) {
   const host = req.headers.host || 'localhost';
@@ -172,11 +171,4 @@ if (!process.env.VERCEL) {
   });
 }
 
-if (process.env.NODE_ENV !== 'production') {
-  const PORT = process.env.PORT || 3000;
-  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-}
-
-module.exports = app;
-
-
+module.exports = server;
