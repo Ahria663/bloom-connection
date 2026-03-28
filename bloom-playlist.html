@@ -673,7 +673,10 @@ function renderQueue(){
             <span class="vote-count font-sans">${s.votes}</span>
         </div>
     </div>`).join('');
-  if(lyricsOpen) setTimeout(syncSplitQueue, 50);
+  if(lyricsOpen){
+    clearTimeout(window._syncQueueTimer);
+    window._syncQueueTimer = setTimeout(syncSplitQueue, 200);
+  }
 }
 
 function escAttr(s){
@@ -802,7 +805,7 @@ function applySpotifyTrackToUI(item, isPlaying){
   currentLyricsTrack = { title, artist: primaryArtist };
   if(lyricsOpen){
     fetchLyricsKaraoke(title, primaryArtist);
-    syncSplitQueue();
+    setTimeout(syncSplitQueue, 100);
   }
 }
 
@@ -842,10 +845,20 @@ function closeLyrics(){
 }
 
 function syncSplitQueue(){
-  // Mirror the main queue into the split layout left column
-  const src = document.getElementById('app');
+  // Only mirror the header + now-playing + queue sections — not the whole app
+  // and only do it once per render cycle
   const dst = document.getElementById('splitQueue');
-  if(src && dst) dst.innerHTML = src.innerHTML;
+  if(!dst) return;
+  const header   = document.getElementById('app')?.querySelector('.header');
+  const np       = document.getElementById('nowPlaying');
+  const banner   = document.getElementById('connectBanner');
+  const qHeader  = document.getElementById('app')?.querySelector('.section-header');
+  const queue    = document.getElementById('queue');
+  dst.innerHTML = '';
+  dst.style.cssText = 'flex:0 0 480px;padding:24px 16px 110px;position:relative;z-index:1;min-width:0;';
+  [header, np, banner, qHeader, queue].forEach(function(el){
+    if(el) dst.appendChild(el.cloneNode(true));
+  });
 }
 
 // lyricsLines now stores {time, text} objects for timestamped sync
