@@ -294,33 +294,49 @@ function renderQueue() {
  
 // Supabase realtime subscription
 function subscribeQueue() {
-  // Use Supabase Realtime via WebSocket
   const wsUrl = SUPABASE_URL.replace('https://', 'wss://').replace('http://', 'ws://');
   const ws = new WebSocket(`${wsUrl}/realtime/v1/websocket?apikey=${SUPABASE_ANON}&vsn=1.0.0`);
+  let heartbeatTimer = null;
  
   ws.onopen = () => {
+    // Join the postgres_changes channel for this table
     ws.send(JSON.stringify({
-      topic: `realtime:public:${QUEUE_TABLE}`,
+      topic: 'realtime:*',
       event: 'phx_join',
-      payload: { config: { broadcast: { self: true }, presence: { key: '' } } },
+      payload: {
+        config: {
+          postgres_changes: [
+            { event: '*', schema: 'public', table: QUEUE_TABLE }
+          ]
+        }
+      },
       ref: '1',
     }));
+    // Send heartbeat every 25s to keep connection alive
+    heartbeatTimer = setInterval(() => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: 'hb' }));
+      }
+    }, 25000);
   };
  
   ws.onmessage = (e) => {
-    const msg = JSON.parse(e.data);
-    if (msg.event === 'INSERT' || msg.event === 'UPDATE' || msg.event === 'DELETE') {
-      fetchQueue(); // re-fetch on any change
-    }
-    // heartbeat
-    if (msg.event === 'phx_reply' && msg.payload?.status === 'ok') {
-      setTimeout(() => ws.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: '2' })), 25000);
-    }
+    try {
+      const msg = JSON.parse(e.data);
+      const evt = msg.payload?.data?.type || msg.event;
+      if (evt === 'INSERT' || evt === 'UPDATE' || evt === 'DELETE') {
+        fetchQueue();
+      }
+    } catch(err) {}
   };
  
   ws.onclose = () => {
-    // Reconnect after 3s
+    clearInterval(heartbeatTimer);
     setTimeout(subscribeQueue, 3000);
+  };
+ 
+  ws.onerror = () => {
+    ws.close();
   };
 }
  
