@@ -1,13 +1,15 @@
 {
-  "rewrites": [
+  "version": 2,
+  "builds": [
     {
-      "source": "/(.*)",
-      "destination": "/api?__bloom_path=$1"
+      "src": "server.js",
+      "use": "@vercel/node"
     }
   ],
-  "functions": {
-    "api/index.js": {
-      "includeFiles": "bloom-playlist.html"
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "server.js"
     }
-  }
+  ]
 }
