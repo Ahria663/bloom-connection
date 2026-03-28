@@ -1102,11 +1102,19 @@ async function doSearch(q){
         <button type="button" class="close-btn font-sans" style="width:100%;" onclick="closeModals()">Done</button>
       </div>
     </div>`;
-        // Update QR image src to include session ID
+        // Read session ID fresh from sessionStorage every time
         const img = document.getElementById('qrModalImg');
-        if (img && bloomSessionId) {
-            const guestUrl = `https://bloom-connection-vznr.vercel.app/guest.html?session=${bloomSessionId}`;
+        const sid = bloomSessionId || sessionStorage.getItem('bloom_session_id');
+        if (img && sid) {
+            const guestUrl = `https://bloom-connection-vznr.vercel.app/guest.html?session=${sid}`;
             img.src = `https://quickchart.io/qr?text=${encodeURIComponent(guestUrl)}&size=300&margin=3&dark=2d1a22&light=fdf0f3`;
+            // Also show the URL so host can share it manually
+            const urlPill = document.querySelector('#overlay-qr .modal-card div[style*="rose-light"]');
+            if (urlPill) urlPill.textContent = '🔗 Scan or share: ...guest.html?session=' + sid.slice(0,6) + '...';
+        } else if (img) {
+            img.src = '';
+            img.alt = 'Start a session first — click the 🌸 button';
+            img.style.cssText = 'display:flex;align-items:center;justify-content:center;width:200px;height:80px;font-size:13px;color:var(--text-soft);font-family:-apple-system,sans-serif;text-align:center;';
         }
     }
  
