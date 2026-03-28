@@ -501,11 +501,14 @@ function renderHeader(){
   const el = document.getElementById('headerRight');
   if(!el) return;
   if(spotifyToken){
+    const sessionBtn = bloomSessionId
+        ? `<button class="icon-btn" onclick="openQR()" title="Invite friends">⊞</button>`
+        : `<button class="fab-qr font-sans" style="position:relative;bottom:auto;left:auto;padding:8px 14px;font-size:12px;" onclick="startSession()">🌸 Start Session</button>`;
     el.innerHTML = `
         <div class="spotify-badge font-sans">
             <div class="dot-pulse"></div>Spotify
     </div>
-        <button class="icon-btn" onclick="openQR()" title="Invite friends">⊞</button>`;
+        ${sessionBtn}`;
   } else {
     el.innerHTML = `<button class="icon-btn" onclick="openQR()" title="Invite friends">⊞</button>`;
   }
@@ -1107,6 +1110,13 @@ async function doSearch(q){
         }
     }
  
+    async function startSession() {
+        toast('Starting session…');
+        const rt = sessionStorage.getItem('spotify_refresh_token');
+        await createBloomSession(rt || null);
+        renderHeader();
+    }
+
     function closeModals(){ document.getElementById('modals').innerHTML=''; }
     function closeIfBackdrop(e,id){ if(e.target.id===id) closeModals(); }
 
@@ -1120,8 +1130,6 @@ async function doSearch(q){
 
     async function createBloomSession(refreshToken) {
         try {
-            // If no refresh token from browser (Spotify only sends it on first auth),
-            // ask the server to create a session using the Spotify access token instead.
             const payload = refreshToken
                 ? { refreshToken }
                 : { accessToken: spotifyToken };
@@ -1130,11 +1138,20 @@ async function doSearch(q){
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
             });
-            if (!r.ok) return;
             const data = await r.json();
+            if (!r.ok) {
+                toast('Session error: ' + (data.error || r.status));
+                return;
+            }
             bloomSessionId = data.sessionId;
             sessionStorage.setItem('bloom_session_id', bloomSessionId);
-        } catch(e) { console.error('Session create failed', e); }
+            toast('Session ready ✨');
+            // Re-subscribe now that we have a session
+            fetchGuestQueue();
+            subscribeGuestQueue();
+        } catch(e) {
+            toast('Could not start session — check console');
+        }
     }
  
     async function fetchGuestQueue() {
