@@ -303,7 +303,11 @@
         }
         spotifyToken = data.access_token;
         sessionStorage.setItem('spotify_access_token', spotifyToken);
-        if (data.refresh_token) sessionStorage.setItem('spotify_refresh_token', data.refresh_token);
+        if (data.refresh_token) {
+            sessionStorage.setItem('spotify_refresh_token', data.refresh_token);
+            // Create a Bloom session with this refresh token
+            await createBloomSession(data.refresh_token);
+        }
     }
     async function refreshSpotifyToken() {
         const rt = sessionStorage.getItem('spotify_refresh_token');
@@ -1086,7 +1090,7 @@ async function doSearch(q){
         <div class="modal-title font-serif" style="margin-bottom:4px;">Invite Friends 🌸</div>
         <div class="modal-sub" style="margin-bottom:18px;">Scan to add your song to the playlist</div>
         <div class="qr-box" style="display:inline-block;margin:0 auto 18px;">
-          <img src="${BLOOM_QR_IMG}" alt="QR code" style="display:block;width:200px;height:200px;border-radius:12px;" />
+          <img src="${BLOOM_QR_IMG}" alt="QR code" id="qrModalImg" style="display:block;width:200px;height:200px;border-radius:12px;" />
         </div>
         <div style="display:inline-flex;align-items:center;gap:6px;background:var(--rose-light);border:1px solid rgba(217,92,116,0.2);border-radius:20px;padding:6px 14px;font-family:-apple-system,sans-serif;font-size:11px;color:var(--rose-deep);font-weight:500;margin-bottom:20px;">
           🔗 bloom-connection-vznr.vercel.app
@@ -1094,24 +1098,45 @@ async function doSearch(q){
         <button type="button" class="close-btn font-sans" style="width:100%;" onclick="closeModals()">Done</button>
       </div>
     </div>`;
+        // Update QR image src to include session ID
+        const img = document.getElementById('qrModalImg');
+        if (img && bloomSessionId) {
+            const guestUrl = `https://bloom-connection-vznr.vercel.app/guest.html?session=${bloomSessionId}`;
+            img.src = `https://quickchart.io/qr?text=${encodeURIComponent(guestUrl)}&size=300&margin=3&dark=2d1a22&light=fdf0f3`;
+        }
     }
  
     function closeModals(){ document.getElementById('modals').innerHTML=''; }
     function closeIfBackdrop(e,id){ if(e.target.id===id) closeModals(); }
 
-    // ── Supabase guest queue ───────────────────────────────
-    // Fill in your Supabase project URL and anon key below.
-    const SUPABASE_URL  = 'https://wbtbkqczxttkntjzafgq.supabase.co';   // e.g. https://xxxx.supabase.co
+    // ── Supabase + Sessions ────────────────────────────────
+    const SUPABASE_URL  = 'https://wbtbkqczxttkntjzafgq.supabase.co';
     const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndidGJrcWN6eHR0a250anphZmdxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2NTkzMTAsImV4cCI6MjA5MDIzNTMxMH0.81yC0IWVll9ktKJyciKnC-bsO9atFydvszES_zzo-4k';
     const QUEUE_TABLE   = 'bloom_queue';
 
-    let guestQueueItems = []; // songs added by guests via guest.html
+    let bloomSessionId = sessionStorage.getItem('bloom_session_id') || null;
+    let guestQueueItems = [];
+
+    async function createBloomSession(refreshToken) {
+        try {
+            const r = await fetch('/api/session-create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ refreshToken }),
+            });
+            if (!r.ok) return;
+            const data = await r.json();
+            bloomSessionId = data.sessionId;
+            sessionStorage.setItem('bloom_session_id', bloomSessionId);
+            console.log('Bloom session created:', bloomSessionId);
+        } catch(e) { console.error('Session create failed', e); }
+    }
  
     async function fetchGuestQueue() {
-        if (!SUPABASE_URL || SUPABASE_URL.startsWith('YOUR_')) return;
+        if (!SUPABASE_URL || !bloomSessionId) return;
         try {
             const r = await fetch(
-                `${SUPABASE_URL}/rest/v1/${QUEUE_TABLE}?select=*&order=created_at.asc`,
+                `${SUPABASE_URL}/rest/v1/${QUEUE_TABLE}?session_id=eq.${bloomSessionId}&select=*&order=created_at.asc`,
                 { headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` } }
             );
             if (!r.ok) return;
@@ -1149,7 +1174,7 @@ async function doSearch(q){
     }
  
     function subscribeGuestQueue() {
-        if (!SUPABASE_URL || SUPABASE_URL.startsWith('YOUR_')) return;
+        if (!SUPABASE_URL || !bloomSessionId) return;
         const wsUrl = SUPABASE_URL.replace('https://', 'wss://').replace('http://', 'ws://');
         const ws = new WebSocket(`${wsUrl}/realtime/v1/websocket?apikey=${SUPABASE_ANON}&vsn=1.0.0`);
         ws.onopen = () => {
@@ -1158,7 +1183,7 @@ async function doSearch(q){
                 event: 'phx_join',
                 payload: {
                     config: {
-                        postgres_changes: [{ event: '*', schema: 'public', table: QUEUE_TABLE }]
+                        postgres_changes: [{ event: '*', schema: 'public', table: QUEUE_TABLE, filter: `session_id=eq.${bloomSessionId}` }]
                     }
                 },
                 ref: '1',
@@ -1174,7 +1199,10 @@ async function doSearch(q){
                     fetchGuestQueue();
                     // If Spotify is connected, also queue it there
                     if (spotifyToken && row.uri) {
-                        // Spotify push is handled by /api/queue-add — no duplicate needed
+                        spotifyApiFetch(
+                            `https://api.spotify.com/v1/me/player/queue?uri=${encodeURIComponent(row.uri)}`,
+                            { method: 'POST' }
+                        ).catch(() => {});
                     }
                 }
             }
@@ -1195,7 +1223,7 @@ async function doSearch(q){
         fetch('/api/queue-remove', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ uri }),
+            body: JSON.stringify({ uri, sessionId: bloomSessionId }),
         }).catch(() => {});
     }
  

@@ -1,42 +1,41 @@
 // api/queue-add.js
-// Guests call this to add a song. It:
-//   1. Writes the song to Supabase (so the host's UI updates live)
-//   2. Adds it to the host's Spotify queue via the host's token
-//
-// Required env vars (set in Vercel dashboard):
-//   SPOTIFY_CLIENT_ID
-//   SPOTIFY_CLIENT_SECRET
-//   SPOTIFY_REFRESH_TOKEN
-//   SUPABASE_URL          — e.g. https://xxxx.supabase.co
-//   SUPABASE_SERVICE_KEY  — service_role key (NOT the anon key — needs insert rights)
+// Adds a song to the session's Supabase queue and to the host's Spotify queue.
 
-let cachedToken = null;
-let tokenExpiry = 0;
+const tokenCache = {};
 
-async function getAccessToken() {
-  if (cachedToken && Date.now() < tokenExpiry - 60_000) return cachedToken;
-
+async function getAccessToken(refreshToken) {
+  const cached = tokenCache[refreshToken];
+  if (cached && Date.now() < cached.expiry - 60_000) return cached.token;
   const res = await fetch('https://accounts.spotify.com/api/token', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
-      Authorization:
-        'Basic ' +
-        Buffer.from(
-          process.env.SPOTIFY_CLIENT_ID + ':' + process.env.SPOTIFY_CLIENT_SECRET
-        ).toString('base64'),
+      Authorization: 'Basic ' + Buffer.from(
+        process.env.SPOTIFY_CLIENT_ID + ':' + process.env.SPOTIFY_CLIENT_SECRET
+      ).toString('base64'),
     },
-    body: new URLSearchParams({
-      grant_type: 'refresh_token',
-      refresh_token: process.env.SPOTIFY_REFRESH_TOKEN,
-    }),
+    body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: refreshToken }),
   });
-
-  if (!res.ok) throw new Error('Failed to refresh Spotify token');
+  if (!res.ok) throw new Error('Token refresh failed');
   const data = await res.json();
-  cachedToken = data.access_token;
-  tokenExpiry = Date.now() + data.expires_in * 1000;
-  return cachedToken;
+  tokenCache[refreshToken] = { token: data.access_token, expiry: Date.now() + data.expires_in * 1000 };
+  return data.access_token;
+}
+
+async function getSession(sessionId) {
+  const r = await fetch(
+    `${process.env.SUPABASE_URL}/rest/v1/bloom_sessions?id=eq.${sessionId}&select=refresh_token,host_name`,
+    {
+      headers: {
+        apikey: process.env.SUPABASE_SERVICE_KEY,
+        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+      },
+    }
+  );
+  if (!r.ok) throw new Error('Session lookup failed');
+  const rows = await r.json();
+  if (!rows.length) throw new Error('Session not found');
+  return rows[0];
 }
 
 export default async function handler(req, res) {
@@ -46,12 +45,22 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { uri, title, artist, art, album, dur, addedBy } = req.body || {};
+  const { uri, title, artist, art, album, dur, addedBy, sessionId } = req.body || {};
   if (!uri || !title) return res.status(400).json({ error: 'Missing uri or title' });
+  if (!sessionId) return res.status(400).json({ error: 'Missing sessionId' });
 
   const errors = [];
 
-  // 1. Write to Supabase
+  // 1. Look up the session to get the host's refresh token
+  let refreshToken = process.env.SPOTIFY_REFRESH_TOKEN;
+  try {
+    const session = await getSession(sessionId);
+    refreshToken = session.refresh_token;
+  } catch (e) {
+    errors.push('Session error: ' + e.message);
+  }
+
+  // 2. Write to Supabase with session_id so it's scoped to this host
   try {
     const sbRes = await fetch(
       `${process.env.SUPABASE_URL}/rest/v1/bloom_queue`,
@@ -64,51 +73,36 @@ export default async function handler(req, res) {
           Prefer: 'return=minimal',
         },
         body: JSON.stringify({
-          uri,
-          title,
+          uri, title,
           artist: artist || '',
           art: art || '',
           album: album || '',
           dur: dur || '',
           added_by: addedBy || 'guest',
           votes: 0,
+          session_id: sessionId,
         }),
       }
     );
-    if (!sbRes.ok) {
-      const txt = await sbRes.text();
-      errors.push('Supabase error: ' + txt);
-    }
+    if (!sbRes.ok) errors.push('Supabase error: ' + await sbRes.text());
   } catch (e) {
     errors.push('Supabase unreachable: ' + e.message);
   }
 
-  // 2. Add to Spotify queue
+  // 3. Add to the host's Spotify queue using their token
   try {
-    const token = await getAccessToken();
+    const token = await getAccessToken(refreshToken);
     const spRes = await fetch(
       `https://api.spotify.com/v1/me/player/queue?uri=${encodeURIComponent(uri)}`,
-      {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      }
+      { method: 'POST', headers: { Authorization: `Bearer ${token}` } }
     );
-    // 404 means no active device — that's okay, song is still in Supabase
     if (!spRes.ok && spRes.status !== 404) {
-      const txt = await spRes.text();
-      errors.push('Spotify error: ' + txt);
+      errors.push('Spotify error: ' + await spRes.text());
     }
   } catch (e) {
     errors.push('Spotify unreachable: ' + e.message);
   }
 
-  if (errors.length === 2) {
-    // Both failed — something is very wrong
-    return res.status(500).json({ error: errors.join(' | ') });
-  }
-
-  return res.status(200).json({
-    ok: true,
-    warnings: errors.length ? errors : undefined,
-  });
+  if (errors.length === 3) return res.status(500).json({ error: errors.join(' | ') });
+  return res.status(200).json({ ok: true, warnings: errors.length ? errors : undefined });
 }
