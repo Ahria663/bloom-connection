@@ -989,6 +989,10 @@ function tickLyrics(){
     scroll.style.transform = 'translateY(' + (-offset) + 'px)';
   }
 }
+
+function syncSplitQueue(){
+  tickLyrics();
+}
  
 async function fetchNowPlaying(){
   if(!spotifyToken) return;
@@ -1469,32 +1473,6 @@ async function doSearch(q){
         };
         ws.onclose = () => setTimeout(subscribeGuestQueue, 3000);
     }
- 
-    // ── Push pending Supabase songs to Spotify ────────────
-    // Catches any songs that were added to Supabase but missed by realtime
-    let pushedUris = new Set();
-    let pushCutoffTime = new Date().toISOString();
-
-    async function pushPendingToSpotify() {
-        if (!spotifyToken || !bloomSessionId) return;
-        try {
-            const r = await fetch(
-                `${SUPABASE_URL}/rest/v1/${QUEUE_TABLE}?session_id=eq.${bloomSessionId}&select=uri,created_at&order=created_at.asc&created_at=gt.${pushCutoffTime}`,
-                { headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` } }
-            );
-            if (!r.ok) return;
-            const rows = await r.json();
-            for (const row of rows) {
-                if (row.uri && !pushedUris.has(row.uri)) {
-                    pushedUris.add(row.uri);
-                    spotifyApiFetch(
-                        `https://api.spotify.com/v1/me/player/queue?uri=${encodeURIComponent(row.uri)}`,
-                        { method: 'POST' }
-                    ).catch(() => {});
-                }
-            }
-        } catch(e) {}
-    }
 
     // ── Auto-clear played songs from Supabase ─────────────
     // Called whenever now-playing changes. Calls /api/queue-remove
@@ -1541,7 +1519,7 @@ async function doSearch(q){
         fetchGuestQueue();
         subscribeGuestQueue();
         // Every 10s, push any Supabase-queued songs to Spotify that may have been missed
-        setInterval(pushPendingToSpotify, 10000);
+
     })();
 </script>
 </body>
