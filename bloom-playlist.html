@@ -1069,43 +1069,26 @@ async function doSearch(q){
     }
 
     // ── QR Modal ───────────────────────────────────────────
+    const BLOOM_INVITE_URL = 'https://bloom-connection-vznr.vercel.app';
+
+    const BLOOM_QR_IMG = "data:image/png;base64,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";
+
     function openQR(){
         const m = document.getElementById('modals');
         m.innerHTML = `
     <div class="overlay" onclick="closeIfBackdrop(event,'overlay-qr')" id="overlay-qr">
-      <div class="modal-card" style="max-width:380px;text-align:left;" onclick="event.stopPropagation()">
-        <div class="modal-title font-serif" style="text-align:center;">Invite 🌸</div>
-        <div class="modal-sub" style="text-align:center;">QR works without Wi‑Fi if you use a public link or a Spotify URL below.</div>
-        <div class="qr-box" id="qrMount" style="display:block;margin-left:auto;margin-right:auto;"><p class="qr-fallback">Building QR…</p></div>
-        <p id="qrLanHint" style="font-size:11px;color:var(--text-soft);font-style:italic;margin-bottom:14px;font-family:-apple-system,sans-serif;line-height:1.5;">…</p>
-        <div style="border-top:1px solid var(--glass-border);padding-top:14px;">
-          <div style="font-size:11px;font-weight:600;color:var(--text-mid);margin-bottom:6px;font-family:-apple-system,sans-serif;">Public Bloom page (https)</div>
-          <input type="url" id="qrBloomUrl" class="search-input font-sans" style="width:100%;margin-bottom:6px;box-sizing:border-box;" placeholder="https://…/bloom-playlist.html" autocomplete="off" />
-          <p style="font-size:10px;color:var(--text-soft);line-height:1.45;margin-bottom:12px;font-family:-apple-system,sans-serif;">Host this file on Netlify, Cloudflare Pages, GitHub Pages, etc., then paste the live URL. Guests open Bloom from the internet.</p>
-          <div style="font-size:11px;font-weight:600;color:var(--text-mid);margin-bottom:6px;font-family:-apple-system,sans-serif;">Or Spotify link only (track or playlist)</div>
-          <input type="text" id="qrSpotifyUrl" class="search-input font-sans" style="width:100%;margin-bottom:6px;box-sizing:border-box;" placeholder="https://open.spotify.com/… or spotify:track:…" autocomplete="off" />
-          <p style="font-size:10px;color:var(--text-soft);line-height:1.45;margin-bottom:12px;font-family:-apple-system,sans-serif;">Opens the Spotify app. They add to their own queue there — there is no official link that adds to your queue on their device.</p>
-          <button type="button" class="close-btn font-sans" style="width:100%;margin-bottom:8px;" onclick="applyQrSettings()">Save &amp; refresh QR</button>
-          <p style="font-size:10px;color:var(--text-soft);text-align:center;font-family:-apple-system,sans-serif;">Leave both blank and save to use Wi‑Fi / auto URL again.</p>
+      <div class="modal-card" onclick="event.stopPropagation()" style="padding:36px 32px 28px;">
+        <div class="modal-title font-serif" style="margin-bottom:4px;">Invite Friends 🌸</div>
+        <div class="modal-sub" style="margin-bottom:18px;">Scan to add your song to the playlist</div>
+        <div class="qr-box" style="display:inline-block;margin:0 auto 18px;">
+          <img src="${BLOOM_QR_IMG}" alt="QR code" style="display:block;width:200px;height:200px;border-radius:12px;" />
         </div>
-        <button type="button" class="close-btn font-sans" style="width:100%;margin-top:6px;background:transparent;color:var(--rose-deep);border:1.5px solid var(--rose);" onclick="closeModals()">Done</button>
+        <div style="display:inline-flex;align-items:center;gap:6px;background:var(--rose-light);border:1px solid rgba(217,92,116,0.2);border-radius:20px;padding:6px 14px;font-family:-apple-system,sans-serif;font-size:11px;color:var(--rose-deep);font-weight:500;margin-bottom:20px;">
+          🔗 bloom-connection-vznr.vercel.app
+        </div>
+        <button type="button" class="close-btn font-sans" style="width:100%;" onclick="closeModals()">Done</button>
       </div>
     </div>`;
-        const b = document.getElementById('qrBloomUrl');
-        const s = document.getElementById('qrSpotifyUrl');
-        if(b) b.value = sessionStorage.getItem('bloom_qr_invite_url') || '';
-        if(s) s.value = sessionStorage.getItem('bloom_qr_spotify_only') || '';
-        buildInviteUrl().then(({ url, usedLan, mode }) => {
-            const hint = document.getElementById('qrLanHint');
-            setQrHint(hint, url, mode, usedLan);
-            return loadQRScript().then(() => {
-                const mount = document.getElementById('qrMount');
-                if(mount) paintQRCode(mount, url);
-            });
-        }).catch(() => {
-            const mount = document.getElementById('qrMount');
-            if(mount) mount.innerHTML = '<p class="qr-fallback">Could not build the QR. Check your network for the QR library, or set a Spotify / https link above.</p>';
-        });
     }
 
     function closeModals(){ document.getElementById('modals').innerHTML=''; }
