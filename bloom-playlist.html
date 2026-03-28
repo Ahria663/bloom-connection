@@ -848,7 +848,11 @@ function syncSplitQueue(){
   if(src && dst) dst.innerHTML = src.innerHTML;
 }
 
+// lyricsLines now stores {time, text} objects for timestamped sync
+// time is in seconds (from lrclib), text is the lyric line
 let lastLyricsFetch = '';
+let lyricsTimestamped = false; // true if we have real timestamps
+
 async function fetchLyricsKaraoke(title, artist){
   if(!title || !artist) return;
   const key = title + '||' + artist;
@@ -856,53 +860,103 @@ async function fetchLyricsKaraoke(title, artist){
   const status = document.getElementById('lyricsStatus');
   const scroll = document.getElementById('lyricsScroll');
 
-  if(status) status.textContent = '♪ ' + title + ' — ' + artist;
+  if(status) status.textContent = '\u266a ' + title + ' \u2014 ' + artist;
 
   if(key === lastLyricsFetch) return;
   lastLyricsFetch = key;
   lyricsLines = [];
   lyricsActiveIdx = -1;
+  lyricsTimestamped = false;
   clearInterval(lyricsTickTimer);
-  if(scroll) scroll.innerHTML = '<div style="color:var(--text-soft);font-family:-apple-system,sans-serif;font-size:13px;padding:8px 0;">Loading lyrics…</div>';
+  if(scroll) scroll.innerHTML = '<div style="color:var(--text-soft);font-family:-apple-system,sans-serif;font-size:13px;padding:8px 0;">Loading lyrics\u2026</div>';
 
+  const cleanTitle  = title.replace(/\s*[\(\[].*?[\)\]]/g, '').trim();
+  const cleanArtist = artist.split(',')[0].trim();
+
+  // Try lrclib first — has real timestamps
   try {
-    const cleanTitle  = title.replace(/\s*[\(\[].*?[\)\]]/g, '').trim();
-    const cleanArtist = artist.split(',')[0].trim();
-    const url = 'https://api.lyrics.ovh/v1/' + encodeURIComponent(cleanArtist) + '/' + encodeURIComponent(cleanTitle);
-    const r = await fetch(url);
-    if(!r.ok) throw new Error('not found');
-    const data = await r.json();
-    if(!data.lyrics) throw new Error('empty');
-
-    // Parse into lines, skip blank runs
-    const raw = data.lyrics.trim().split('\n');
-    lyricsLines = [];
-    let blankRun = 0;
-    for(const line of raw){
-      const t = line.trim();
-      if(!t){ blankRun++; if(blankRun <= 1) lyricsLines.push(''); }
-      else { blankRun = 0; lyricsLines.push(t); }
+    const dur = npLast ? Math.round(npLast.duration_ms / 1000) : 0;
+    const lrcUrl = 'https://lrclib.net/api/get?track_name=' + encodeURIComponent(cleanTitle) +
+      '&artist_name=' + encodeURIComponent(cleanArtist) +
+      (dur ? '&duration=' + dur : '');
+    const r = await fetch(lrcUrl);
+    if(r.ok){
+      const data = await r.json();
+      // syncedLyrics has timestamps: [mm:ss.xx] line text
+      const lrc = data.syncedLyrics || data.plainLyrics || '';
+      if(lrc && data.syncedLyrics){
+        // Parse LRC format: [00:12.34] Some lyric line
+        const lrcLines = data.syncedLyrics.split('\n');
+        lyricsLines = [];
+        for(const line of lrcLines){
+          const m = line.match(/^\[(\d+):(\d+\.?\d*)\](.*)$/);
+          if(m){
+            const secs = parseInt(m[1])*60 + parseFloat(m[2]);
+            const text = m[3].trim();
+            lyricsLines.push({ time: secs, text });
+          }
+        }
+        lyricsLines.sort(function(a,b){ return a.time - b.time; });
+        lyricsTimestamped = true;
+        if(status) status.textContent = '\u266a ' + title + ' \u2014 ' + artist;
+        renderLyricsLines();
+        startLyricsTick();
+        return;
+      } else if(lrc && data.plainLyrics){
+        // Fallback: plain lyrics, use progress estimation
+        const raw = data.plainLyrics.trim().split('\n');
+        lyricsLines = [];
+        let blankRun = 0;
+        for(const line of raw){
+          const t = line.trim();
+          if(!t){ blankRun++; if(blankRun <= 1) lyricsLines.push({time:-1, text:''}); }
+          else { blankRun = 0; lyricsLines.push({time:-1, text:t}); }
+        }
+        renderLyricsLines();
+        startLyricsTick();
+        return;
+      }
     }
+  } catch(e) {}
 
-    renderLyricsLines();
-    startLyricsTick();
-  } catch(e) {
-    if(scroll) scroll.innerHTML = '<div style="color:var(--text-soft);font-family:-apple-system,sans-serif;font-size:13px;padding:8px 0;line-height:1.8;">Lyrics not found<br><a href="https://genius.com/search?q=' + encodeURIComponent(title+' '+artist) + '" target="_blank" style="color:var(--rose-deep);font-size:12px;">Search on Genius ↗</a></div>';
-  }
+  // Fallback: lyrics.ovh
+  try {
+    const ovhUrl = 'https://api.lyrics.ovh/v1/' + encodeURIComponent(cleanArtist) + '/' + encodeURIComponent(cleanTitle);
+    const r2 = await fetch(ovhUrl);
+    if(r2.ok){
+      const data2 = await r2.json();
+      if(data2.lyrics){
+        const raw = data2.lyrics.trim().split('\n');
+        lyricsLines = [];
+        let blankRun = 0;
+        for(const line of raw){
+          const t = line.trim();
+          if(!t){ blankRun++; if(blankRun <= 1) lyricsLines.push({time:-1, text:''}); }
+          else { blankRun = 0; lyricsLines.push({time:-1, text:t}); }
+        }
+        renderLyricsLines();
+        startLyricsTick();
+        return;
+      }
+    }
+  } catch(e) {}
+
+  // Nothing found
+  if(scroll) scroll.innerHTML = '<div style="color:var(--text-soft);font-family:-apple-system,sans-serif;font-size:13px;padding:8px 0;line-height:1.8;">Lyrics not found<br><a href="https://genius.com/search?q=' + encodeURIComponent(title+' '+artist) + '" target="_blank" style="color:var(--rose-deep);font-size:12px;">Search on Genius \u2197</a></div>';
 }
 
 function renderLyricsLines(){
   const scroll = document.getElementById('lyricsScroll');
   if(!scroll) return;
   scroll.innerHTML = lyricsLines.map(function(line, i){
-    if(!line) return '<div class="lyric-line empty" data-idx="' + i + '"></div>';
-    return '<div class="lyric-line" data-idx="' + i + '">' + esc(line) + '</div>';
+    if(!line.text) return '<div class="lyric-line empty" data-idx="' + i + '"></div>';
+    return '<div class="lyric-line" data-idx="' + i + '">' + esc(line.text) + '</div>';
   }).join('');
 }
 
 function startLyricsTick(){
   clearInterval(lyricsTickTimer);
-  lyricsTickTimer = setInterval(tickLyrics, 500);
+  lyricsTickTimer = setInterval(tickLyrics, 100);
 }
 
 function tickLyrics(){
@@ -910,12 +964,22 @@ function tickLyrics(){
   const prog = npLast.is_playing
     ? Math.min(npLast.progress_ms + (Date.now() - npLast.fetchedAt), npLast.duration_ms)
     : npLast.progress_ms;
-  const dur  = npLast.duration_ms || 1;
-  const pct  = prog / dur;
+  const progSecs = prog / 1000;
 
-  // Estimate current line
-  const nonEmpty = lyricsLines.filter(function(l){ return l.trim(); }).length;
-  const lineIdx  = Math.floor(pct * lyricsLines.length);
+  let lineIdx = 0;
+  if(lyricsTimestamped){
+    // Real timestamps — find the last line whose time <= current position
+    for(let i = lyricsLines.length - 1; i >= 0; i--){
+      if(lyricsLines[i].time <= progSecs){
+        lineIdx = i;
+        break;
+      }
+    }
+  } else {
+    // Estimated — spread lines evenly across duration
+    const pct = prog / (npLast.duration_ms || 1);
+    lineIdx = Math.min(Math.floor(pct * lyricsLines.length), lyricsLines.length - 1);
+  }
 
   if(lineIdx === lyricsActiveIdx) return;
   lyricsActiveIdx = lineIdx;
@@ -928,15 +992,15 @@ function tickLyrics(){
     el.classList.remove('active','past','next');
     if(i < lineIdx) el.classList.add('past');
     else if(i === lineIdx) el.classList.add('active');
-    else if(i === lineIdx + 1 || i === lineIdx + 2) el.classList.add('next');
+    else if(i <= lineIdx + 2) el.classList.add('next');
   });
 
-  // Scroll active line to center
+  // Smooth scroll active line to center
   const active = scroll.querySelector('.lyric-line.active');
   if(active){
     const karaoke = document.getElementById('lyricsKaraoke');
     const karaokeH = karaoke ? karaoke.offsetHeight : 400;
-    const offset = active.offsetTop - (karaokeH * 0.4);
+    const offset = active.offsetTop - (karaokeH * 0.38);
     scroll.style.transform = 'translateY(' + (-offset) + 'px)';
   }
 }
