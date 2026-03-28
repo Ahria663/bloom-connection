@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bloom — Collaborative Playlist</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap" rel="stylesheet">
+    <title>Peanut Butter & Jam 🥜</title>
     <style>
         *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
         :root{
@@ -143,11 +145,9 @@
         .eq-bars.np-paused .eq-bar{animation-play-state:paused;opacity:.45;}
 
         /* ── split layout when lyrics are open ── */
-        body.lyrics-mode{overflow:hidden;}
-        body.lyrics-mode .app{flex:0 0 480px;max-width:480px;margin:0;}
-        body.lyrics-mode > .split-lyrics-panel{display:flex !important;}
-        .split-lyrics-panel{display:none;position:fixed;top:0;right:0;bottom:0;left:480px;flex-direction:column;padding:24px 28px 32px;background:var(--blush);border-left:1px solid var(--glass-border);z-index:10;}
-        body.lyrics-mode{display:flex;align-items:flex-start;}
+        body.lyrics-mode .app{max-width:480px;margin:0 auto;}
+        .split-lyrics-panel{display:none;position:fixed;top:0;right:0;bottom:0;left:min(480px,50vw);flex-direction:column;padding:28px 28px 32px;background:var(--blush);border-left:1px solid var(--glass-border);z-index:10;overflow:hidden;}
+        body.lyrics-mode .split-lyrics-panel{display:flex;}
 
         /* lyrics karaoke */
         .lyrics-karaoke{flex:1;overflow:hidden;position:relative;mask-image:linear-gradient(to bottom,transparent 0%,black 15%,black 75%,transparent 100%);-webkit-mask-image:linear-gradient(to bottom,transparent 0%,black 15%,black 75%,transparent 100%);}
@@ -170,7 +170,7 @@
     <!-- HEADER -->
     <div class="header">
         <div>
-            <div class="logo font-serif">Bloom <span>🌸</span></div>
+            <div class="logo" style="font-family:'Fredoka One',cursive;font-size:26px;letter-spacing:.5px;">Peanut Butter & Jam</div>
             <div class="logo-sub font-sans">collaborative playlist</div>
         </div>
         <div class="header-right" id="headerRight">
