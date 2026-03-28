@@ -1407,8 +1407,13 @@ async function doSearch(q){
  
     function renderGuestQueue() {
         if (spotifyToken) return;
-        // Rebuild songs from guestQueueItems completely to avoid duplicates
-        songs = guestQueueItems.map(function(row) {
+        // Rebuild from Supabase, deduplicate by uri
+        const seen = new Set();
+        songs = guestQueueItems.filter(function(row) {
+            if (!row.uri || seen.has(row.uri)) return false;
+            seen.add(row.uri);
+            return true;
+        }).map(function(row) {
             return {
                 id: row.id || row.uri,
                 uri: row.uri,
@@ -1423,10 +1428,14 @@ async function doSearch(q){
         renderQueue();
     }
  
+    let _guestQueueWs = null;
     function subscribeGuestQueue() {
         if (!SUPABASE_URL || !bloomSessionId) return;
+        if (!SUPABASE_URL || !bloomSessionId) return;
         const wsUrl = SUPABASE_URL.replace('https://', 'wss://').replace('http://', 'ws://');
+        if (_guestQueueWs) { try { _guestQueueWs.onclose = null; _guestQueueWs.close(); } catch(e){} _guestQueueWs = null; }
         const ws = new WebSocket(`${wsUrl}/realtime/v1/websocket?apikey=${SUPABASE_ANON}&vsn=1.0.0`);
+        _guestQueueWs = ws;
         ws.onopen = () => {
             ws.send(JSON.stringify({
                 topic: 'realtime:*',
