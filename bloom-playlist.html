@@ -145,9 +145,10 @@
         .eq-bars.np-paused .eq-bar{animation-play-state:paused;opacity:.45;}
 
         /* ── split layout when lyrics are open ── */
-        body.lyrics-mode .app{max-width:480px;margin:0 auto;}
-        .split-lyrics-panel{display:none;position:fixed;top:0;right:0;bottom:0;left:min(480px,50vw);flex-direction:column;padding:28px 28px 32px;background:var(--blush);border-left:1px solid var(--glass-border);z-index:10;overflow:hidden;}
+        body.lyrics-mode .app{max-width:480px;margin:0;position:relative;z-index:1;}
+        .split-lyrics-panel{display:none;position:fixed;top:0;bottom:0;right:0;width:calc(100vw - 480px);min-width:300px;flex-direction:column;padding:28px 28px 32px;background:var(--blush);border-left:1px solid var(--glass-border);z-index:10;overflow:hidden;}
         body.lyrics-mode .split-lyrics-panel{display:flex;}
+        body.lyrics-mode{overflow-x:hidden;}
 
         /* lyrics karaoke */
         .lyrics-karaoke{flex:1;overflow:hidden;position:relative;mask-image:linear-gradient(to bottom,transparent 0%,black 15%,black 75%,transparent 100%);-webkit-mask-image:linear-gradient(to bottom,transparent 0%,black 15%,black 75%,transparent 100%);}
