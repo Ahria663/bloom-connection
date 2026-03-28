@@ -1071,7 +1071,8 @@ async function doSearch(q){
     // ── QR Modal ───────────────────────────────────────────
     const BLOOM_INVITE_URL = 'https://bloom-connection-vznr.vercel.app';
 
-    const BLOOM_QR_IMG = "data:image/png;base64,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";
+    const BLOOM_QR_IMG = "https://quickchart.io/qr?text=https%3A%2F%2Fbloom-connection-vznr.vercel.app%2Fguest.html&size=300&margin=3&dark=2d1a22&light=fdf0f3";
+ 
     function openQR(){
         const m = document.getElementById('modals');
         m.innerHTML = `
@@ -1089,7 +1090,7 @@ async function doSearch(q){
       </div>
     </div>`;
     }
-
+ 
     function closeModals(){ document.getElementById('modals').innerHTML=''; }
     function closeIfBackdrop(e,id){ if(e.target.id===id) closeModals(); }
 
