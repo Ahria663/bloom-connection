@@ -7,7 +7,7 @@
   ],
   "functions": {
     "api/index.js": {
-      "includeFiles": "bloom-playlist.html,guest.html"
+      "includeFiles": "../bloom-playlist.html,../guest.html"
     }
   }
 }
