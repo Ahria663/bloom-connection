@@ -1174,10 +1174,7 @@ async function doSearch(q){
                     fetchGuestQueue();
                     // If Spotify is connected, also queue it there
                     if (spotifyToken && row.uri) {
-                        spotifyApiFetch(
-                            `https://api.spotify.com/v1/me/player/queue?uri=${encodeURIComponent(row.uri)}`,
-                            { method: 'POST' }
-                        ).catch(() => {});
+                        // Spotify push is handled by /api/queue-add — no duplicate needed
                     }
                 }
             }
