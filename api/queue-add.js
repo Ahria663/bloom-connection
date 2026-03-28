@@ -3,7 +3,7 @@ const tokenCache = {};
 
 async function getAccessToken(refreshToken) {
   const cached = tokenCache[refreshToken];
-  if (cached && Date.now() < tokenExpiry - 60000) return cached.token;
+  if (cached && Date.now() < cached.expiry - 60000) return cached.token;
   const creds = Buffer.from(process.env.SPOTIFY_CLIENT_ID + ':' + process.env.SPOTIFY_CLIENT_SECRET).toString('base64');
   const res = await fetch('https://accounts.spotify.com/api/token', {
     method: 'POST',
@@ -34,14 +34,13 @@ module.exports = async function(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  // Parse body manually in case body-parser isn't running
   let body = req.body;
   if (!body || typeof body !== 'object') {
     try {
-      const raw = await new Promise((resolve, reject) => {
+      const raw = await new Promise(function(resolve, reject) {
         let data = '';
-        req.on('data', chunk => { data += chunk; });
-        req.on('end', () => resolve(data));
+        req.on('data', function(chunk) { data += chunk; });
+        req.on('end', function() { resolve(data); });
         req.on('error', reject);
       });
       body = JSON.parse(raw || '{}');
@@ -50,8 +49,6 @@ module.exports = async function(req, res) {
     }
   }
 
-  console.log('queue-add body:', JSON.stringify(body));
-
   const uri = body.uri, title = body.title;
   const artist = body.artist || '', art = body.art || '';
   const album = body.album || '', dur = body.dur || '';
@@ -59,14 +56,13 @@ module.exports = async function(req, res) {
   const sessionId = body.sessionId || '';
 
   if (!uri || !title) return res.status(400).json({ error: 'Missing uri or title' });
-  if (!sessionId) return res.status(400).json({ error: 'Missing sessionId - received: ' + JSON.stringify(body) });
+  if (!sessionId) return res.status(400).json({ error: 'Missing sessionId' });
 
   let refreshToken = process.env.SPOTIFY_REFRESH_TOKEN;
   try {
     refreshToken = await getSessionToken(sessionId);
-    console.log('Got session token for:', sessionId);
   } catch(e) {
-    console.log('Session lookup failed, using default:', e.message);
+    console.log('Session lookup failed, using default token:', e.message);
   }
 
   const errors = [];
@@ -94,10 +90,14 @@ module.exports = async function(req, res) {
     const spRes = await fetch('https://api.spotify.com/v1/me/player/queue?uri=' + encodeURIComponent(uri), {
       method: 'POST', headers: { 'Authorization': 'Bearer ' + token }
     });
-    if (!spRes.ok && spRes.status !== 404) {
+    if (!spRes.ok) {
       const txt = await spRes.text();
-      console.error('Spotify error:', spRes.status, txt);
-      errors.push('Spotify: ' + spRes.status);
+      console.error('Spotify queue error:', spRes.status, txt);
+      if (spRes.status !== 404) {
+        errors.push('Spotify: ' + spRes.status);
+      }
+    } else {
+      console.log('Spotify queue success for uri:', uri);
     }
   } catch(e) { errors.push('Spotify: ' + e.message); }
 
