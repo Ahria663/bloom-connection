@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap" rel="stylesheet">
-    <title>Peanut Butter & Jam 🥜</title>
+    <title>Peanut Butter & Jam</title>
     <style>
         *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
         :root{
@@ -1406,30 +1406,21 @@ async function doSearch(q){
     }
  
     function renderGuestQueue() {
-        // Only shown when Spotify is NOT connected (demo mode).
-        // When Spotify IS connected the live Spotify queue is shown instead,
-        // and guest songs are pushed directly to Spotify via /api/queue-add.
         if (spotifyToken) return;
-        // Merge guest items into local songs array (deduplicate by uri)
-        const existingUris = new Set(songs.map(s => s.uri));
-        let added = false;
-        for (const row of guestQueueItems) {
-            if (!existingUris.has(row.uri)) {
-                songs.push({
-                    id: row.id || row.uri,
-                    uri: row.uri,
-                    title: row.title,
-                    artist: row.artist || '',
-                    art: row.art || '',
-                    dur: row.dur || '',
-                    votes: row.votes || 0,
-                    by: row.added_by || 'guest',
-                });
-                existingUris.add(row.uri);
-                added = true;
-            }
-        }
-        if (added) renderQueue();
+        // Rebuild songs from guestQueueItems completely to avoid duplicates
+        songs = guestQueueItems.map(function(row) {
+            return {
+                id: row.id || row.uri,
+                uri: row.uri,
+                title: row.title,
+                artist: row.artist || '',
+                art: row.art || '',
+                dur: row.dur || '',
+                votes: row.votes || 0,
+                by: row.added_by || 'guest',
+            };
+        });
+        renderQueue();
     }
  
     function subscribeGuestQueue() {
