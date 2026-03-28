@@ -85,22 +85,9 @@ module.exports = async function(req, res) {
     }
   } catch(e) { errors.push('Supabase: ' + e.message); }
 
-  try {
-    const token = await getAccessToken(refreshToken);
-    const spRes = await fetch('https://api.spotify.com/v1/me/player/queue?uri=' + encodeURIComponent(uri), {
-      method: 'POST', headers: { 'Authorization': 'Bearer ' + token }
-    });
-    if (!spRes.ok) {
-      const txt = await spRes.text();
-      console.error('Spotify queue error:', spRes.status, txt);
-      if (spRes.status !== 404) {
-        errors.push('Spotify: ' + spRes.status);
-      }
-    } else {
-      console.log('Spotify queue success for uri:', uri);
-    }
-  } catch(e) { errors.push('Spotify: ' + e.message); }
-
-  if (errors.length === 2) return res.status(500).json({ error: errors.join(' | ') });
-  return res.status(200).json({ ok: true, warnings: errors.length ? errors : undefined });
+  // Spotify queuing is handled by the host's browser via Supabase realtime INSERT event.
+  // The host app (bloom-playlist.html) listens for INSERTs and calls Spotify directly
+  // using the host's live access token — more reliable than server-side token.
+  if (errors.length > 0) return res.status(500).json({ error: errors.join(' | ') });
+  return res.status(200).json({ ok: true });
 };
