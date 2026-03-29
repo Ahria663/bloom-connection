@@ -61,6 +61,9 @@
         .song-card{display:flex;align-items:center;gap:12px;background:var(--glass);backdrop-filter:blur(10px);border-radius:16px;padding:11px 14px;border:1px solid var(--glass-border);transition:transform .2s,box-shadow .2s;cursor:default;margin-bottom:10px;}
         .song-card:hover{transform:translateX(4px);box-shadow:0 6px 24px rgba(244,160,176,.22);}
         .song-card.top{background:linear-gradient(135deg,var(--rose-light),var(--petal));border-color:rgba(224,96,122,.22);box-shadow:0 4px 20px rgba(224,96,122,.12);}
+        .song-card.guest{background:linear-gradient(135deg,#f2c4ce,#e8a0b0);border-color:rgba(200,80,110,.35);box-shadow:0 4px 18px rgba(200,80,110,.18);}
+        .song-card.guest .song-title{color:#2d1a22;}
+        .song-card.guest .song-meta{color:#7a4a5c;}
         .song-rank{font-size:12px;font-weight:600;color:var(--text-soft);min-width:18px;text-align:center;font-family:-apple-system,sans-serif;}
         .song-art{width:46px;height:46px;border-radius:10px;object-fit:cover;flex-shrink:0;background:linear-gradient(135deg,var(--rose),var(--lavender));}
         .song-art-ph{width:46px;height:46px;border-radius:10px;flex-shrink:0;background:linear-gradient(135deg,var(--rose),var(--lavender));display:flex;align-items:center;justify-content:center;font-size:18px;}
@@ -657,7 +660,7 @@ function renderQueue(){
   document.getElementById('queueCount').textContent = `${sorted.length} songs`;
   if(!sorted.length){ el.innerHTML='<div class="empty">No songs yet — add the first one! 🌸</div>'; return; }
   el.innerHTML = sorted.map((s,i)=>`
-        <div class="song-card ${i===0?'top':''}" style="animation:cardIn .35s ${i*0.05}s both;">
+        <div class="song-card ${i===0?'top':''}${s.by&&s.by!==''?' guest':''}" style="animation:cardIn .35s ${i*0.05}s both;">
             <span class="song-rank font-sans">#${i+1}</span>
         ${s.art ? `<img class="song-art" src="${s.art}" alt="" onerror="this.outerHTML='<div class=\\'song-art-ph\\'>🎵</div>'" />` : `<div class="song-art-ph">🎵</div>`}
         <div class="song-info">
@@ -990,10 +993,6 @@ function tickLyrics(){
     const offset = active.offsetTop - (karaokeH * 0.38);
     scroll.style.transform = 'translateY(' + (-offset) + 'px)';
   }
-}
-
-function syncSplitQueue(){
-  tickLyrics();
 }
  
 async function fetchNowPlaying(){
@@ -1366,9 +1365,14 @@ async function doSearch(q){
         const img  = document.getElementById('persistentQRImg');
         if (!wrap || !img) return;
         const guestUrl = 'https://bloom-connection-vznr.vercel.app/guest.html?session=' + sid;
-        img.src = 'https://quickchart.io/qr?text=' + encodeURIComponent(guestUrl) + '&size=200&margin=2&dark=2d1a22&light=ffffff';
+        // Use QR modal's dynamic src (same as Invite Friends button)
+        img.src = 'https://quickchart.io/qr?text=' + encodeURIComponent(guestUrl) + '&size=300&margin=3&dark=2d1a22&light=fdf0f3';
+        img.onerror = function() {
+            // Fallback to the static embedded QR if quickchart fails
+            img.src = BLOOM_QR_IMG;
+        };
         wrap.style.display = 'block';
-        setTimeout(function(){ wrap.style.opacity = '1'; }, 50);
+        wrap.style.opacity = '1';
     }
 
     function closeModals(){ document.getElementById('modals').innerHTML=''; }
