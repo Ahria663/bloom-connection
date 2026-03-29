@@ -27,6 +27,7 @@
         /* header */
         .header{display:flex;align-items:center;justify-content:space-between;margin-bottom:26px;animation:fadeUp .5s ease both;}
         .logo{font-size:28px;font-weight:700;letter-spacing:-.5px;color:var(--text-dark);}
+        .logo.logo-brand{font-family:'plunct',sans-serif;font-weight:400;font-style:normal;}
         .logo span{font-size:22px;margin-left:4px;}
         .logo-sub{font-size:11px;color:var(--text-soft);margin-top:1px;letter-spacing:.5px;font-family:-apple-system,sans-serif;}
         .header-right{display:flex;gap:10px;align-items:center;}
@@ -170,7 +171,7 @@
     <!-- HEADER -->
     <div class="header">
         <div>
-            <div class="logo" style="font-family:'plunct',sans-serif;font-weight:400;font-style:normal;font-size:28px;">Peanut Butter & Jam</div>
+            <div class="logo logo-brand">Peanut Butter & Jam</div>
             <div class="logo-sub font-sans">collaborative playlist</div>
         </div>
         <div class="header-right" id="headerRight">
@@ -220,13 +221,6 @@
     </div>
     <div id="queue"></div>
 
-    <!-- Persistent QR -->
-    <div id="persistentQR" style="display:none;text-align:center;padding:24px 0 8px;opacity:0;transition:opacity .4s;">
-        <div style="display:inline-block;background:white;border-radius:14px;padding:10px;border:1px solid var(--glass-border);box-shadow:0 4px 16px rgba(244,160,176,.15);">
-            <img id="persistentQRImg" src="" alt="Scan to add a song" style="display:block;width:100px;height:100px;border-radius:8px;" />
-        </div>
-        <div style="font-family:-apple-system,sans-serif;font-size:10px;color:var(--text-soft);margin-top:8px;letter-spacing:.5px;">scan to add a song</div>
-    </div>
 
 </div>
  
@@ -236,6 +230,14 @@
     <div class="lyrics-karaoke" id="lyricsKaraoke">
         <div class="lyrics-scroll" id="lyricsScroll"></div>
     </div>
+</div>
+
+<!-- Persistent QR - fixed bottom left above Invite Friends btn -->
+<div id="persistentQR" style="display:none;position:fixed;bottom:80px;left:24px;z-index:49;opacity:0;transition:opacity .4s;text-align:center;">
+    <div style="background:white;border-radius:12px;padding:8px;border:1px solid var(--glass-border);box-shadow:0 4px 16px rgba(244,160,176,.2);">
+        <img id="persistentQRImg" src="" alt="Scan to add a song" style="display:block;width:80px;height:80px;border-radius:6px;" />
+    </div>
+    <div style="font-family:-apple-system,sans-serif;font-size:9px;color:var(--text-soft);margin-top:5px;letter-spacing:.4px;">scan to add</div>
 </div>
 
 <!-- FABs -->
@@ -996,6 +998,10 @@ function tickLyrics(){
     const offset = active.offsetTop - (karaokeH * 0.38);
     scroll.style.transform = 'translateY(' + (-offset) + 'px)';
   }
+}
+
+function syncSplitQueue(){
+  tickLyrics();
 }
  
 async function fetchNowPlaying(){
