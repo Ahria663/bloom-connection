@@ -232,14 +232,6 @@
     </div>
 </div>
 
-<!-- Persistent QR - fixed bottom left above Invite Friends btn -->
-<div id="persistentQR" style="display:none;position:fixed;bottom:80px;left:24px;z-index:49;opacity:0;transition:opacity .4s;text-align:center;">
-    <div style="background:white;border-radius:12px;padding:8px;border:1px solid var(--glass-border);box-shadow:0 4px 16px rgba(244,160,176,.2);">
-        <img id="persistentQRImg" src="" alt="Scan to add a song" style="display:block;width:80px;height:80px;border-radius:6px;" />
-    </div>
-    <div style="font-family:-apple-system,sans-serif;font-size:9px;color:var(--text-soft);margin-top:5px;letter-spacing:.4px;">scan to add</div>
-</div>
-
 <!-- FABs -->
 <button class="fab-qr font-sans" onclick="openQR()">
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--rose-deep)" stroke-width="2.2" stroke-linecap="round">
@@ -1545,5 +1537,12 @@ async function doSearch(q){
 
     })();
 </script>
+<!-- Persistent QR - outside all containers so fixed works correctly -->
+<div id="persistentQR" style="display:none;position:fixed;bottom:90px;left:24px;z-index:9999;opacity:0;transition:opacity .5s;text-align:center;">
+    <div style="background:white;border-radius:12px;padding:8px;border:1px solid rgba(244,160,176,.4);box-shadow:0 4px 20px rgba(244,160,176,.25);">
+        <img id="persistentQRImg" src="" alt="Scan to add a song" style="display:block;width:90px;height:90px;border-radius:6px;" />
+    </div>
+    <div style="font-family:-apple-system,sans-serif;font-size:9px;color:var(--text-soft);margin-top:5px;letter-spacing:.4px;">scan to add</div>
+</div>
 </body>
 </html>
