@@ -1,4 +1,6 @@
 // api/queue-remove.js
+const { SUPABASE_URL, supabaseHeaders } = require('./supabase-env');
+
 module.exports = async function(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -15,9 +17,9 @@ module.exports = async function(req, res) {
       : 'uri=eq.' + encodeURIComponent(uri);
   
     try {
-      const r = await fetch(process.env.SUPABASE_URL + '/rest/v1/bloom_queue?' + filter, {
+      const r = await fetch(SUPABASE_URL + '/rest/v1/bloom_queue?' + filter, {
         method: 'DELETE',
-        headers: { 'apikey': process.env.SUPABASE_SERVICE_KEY, 'Authorization': 'Bearer ' + process.env.SUPABASE_SERVICE_KEY }
+        headers: supabaseHeaders()
       });
       if (!r.ok) return res.status(500).json({ error: await r.text() });
       return res.status(200).json({ ok: true });

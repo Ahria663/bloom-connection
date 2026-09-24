@@ -1,4 +1,5 @@
 // api/queue-add.js
+const { SUPABASE_URL, supabaseHeaders } = require('./supabase-env');
 const tokenCache = {};
 
 async function getAccessToken(refreshToken) {
@@ -17,9 +18,9 @@ async function getAccessToken(refreshToken) {
 }
 
 async function getSessionToken(sessionId) {
-  const url = process.env.SUPABASE_URL + '/rest/v1/bloom_sessions?id=eq.' + encodeURIComponent(sessionId) + '&select=refresh_token';
+  const url = SUPABASE_URL + '/rest/v1/bloom_sessions?id=eq.' + encodeURIComponent(sessionId) + '&select=refresh_token';
   const r = await fetch(url, {
-    headers: { 'apikey': process.env.SUPABASE_SERVICE_KEY, 'Authorization': 'Bearer ' + process.env.SUPABASE_SERVICE_KEY }
+    headers: supabaseHeaders()
   });
   if (!r.ok) throw new Error('Session fetch failed: ' + r.status);
   const rows = await r.json();
@@ -68,14 +69,12 @@ module.exports = async function(req, res) {
   const errors = [];
 
   try {
-    const sbRes = await fetch(process.env.SUPABASE_URL + '/rest/v1/bloom_queue', {
+    const sbRes = await fetch(SUPABASE_URL + '/rest/v1/bloom_queue', {
       method: 'POST',
-      headers: {
+      headers: supabaseHeaders({
         'Content-Type': 'application/json',
-        'apikey': process.env.SUPABASE_SERVICE_KEY,
-        'Authorization': 'Bearer ' + process.env.SUPABASE_SERVICE_KEY,
         'Prefer': 'return=minimal'
-      },
+      }),
       body: JSON.stringify({ uri, title, artist, art, album, dur, added_by: addedBy, votes: 0, session_id: sessionId })
     });
     if (!sbRes.ok) {

@@ -1337,14 +1337,17 @@ async function doSearch(q){
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
             });
-            const data = await r.json();
-            if (!r.ok) {
+            const data = await r.json().catch(() => ({}));
+            if (!r.ok || !data.sessionId) {
+                bloomSessionId = (data && data.sessionId) || (Math.random().toString(36).slice(2, 9) + Math.random().toString(36).slice(2, 9));
+                sessionStorage.setItem('bloom_session_id', bloomSessionId);
+                showPersistentQR(bloomSessionId);
                 toast('Session error: ' + (data.error || r.status));
                 return;
             }
             bloomSessionId = data.sessionId;
             sessionStorage.setItem('bloom_session_id', bloomSessionId);
-            toast('Session ready ✨');
+            toast(data.warning ? 'Session ready — queue sync may be limited' : 'Session ready ✨');
             showPersistentQR(bloomSessionId);
             // Re-subscribe now that we have a session
             fetchGuestQueue();
