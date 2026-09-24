@@ -1060,38 +1060,77 @@ function tickLyrics(){
   }
 }
  
-async function playerCommand(path, method){
+async function getActivePlayer(){
+  const r = await spotifyApiFetch('https://api.spotify.com/v1/me/player', {});
+  if(r.status === 204 || r.status === 404) return null;
+  if(!r.ok) return null;
+  return r.json();
+}
+
+function playerErrorToast(err){
+  const msg = String(err || '');
+  if(/restriction/i.test(msg)){
+    toast('Spotify blocked that — Premium, an active device, and no DJ/private session');
+    return;
+  }
+  toast(msg || 'Playback control failed');
+}
+
+async function playerCommand(path, method, deviceId){
+  if(!spotifyToken){
+    toast('Connect Spotify to control playback');
+    return false;
+  }
+  try{
+    let url = 'https://api.spotify.com/v1/me/player/' + path;
+    if(deviceId) url += (url.includes('?') ? '&' : '?') + 'device_id=' + encodeURIComponent(deviceId);
+    const r = await spotifyApiFetch(url, { method: method || 'POST' });
+    if(r.status === 404){
+      toast('Start playback on a Spotify device first (Premium)');
+      return false;
+    }
+    if(!r.ok && r.status !== 204){
+      const j = await r.json().catch(()=>({}));
+      playerErrorToast(j.error?.message || 'Playback control failed');
+      return false;
+    }
+    setTimeout(fetchNowPlaying, 400);
+    setTimeout(fetchSpotifyQueue, 800);
+    return true;
+  } catch(e){
+    toast('Playback control failed');
+    return false;
+  }
+}
+
+async function playerPrev(){
+  const player = await getActivePlayer().catch(()=>null);
+  await playerCommand('previous', 'POST', player && player.device && player.device.id);
+}
+
+async function playerNext(){
+  const player = await getActivePlayer().catch(()=>null);
+  await playerCommand('next', 'POST', player && player.device && player.device.id);
+}
+
+async function playerToggle(){
   if(!spotifyToken){
     toast('Connect Spotify to control playback');
     return;
   }
-  try{
-    const r = await spotifyApiFetch('https://api.spotify.com/v1/me/player/' + path, { method: method || 'POST' });
-    if(r.status === 404){
-      toast('Start playback on a Spotify device first (Premium)');
-      return;
-    }
-    if(!r.ok && r.status !== 204){
-      const j = await r.json().catch(()=>({}));
-      toast(j.error?.message || 'Playback control failed');
-      return;
-    }
-    setTimeout(fetchNowPlaying, 350);
-    setTimeout(fetchSpotifyQueue, 800);
-  } catch(e){
-    toast('Playback control failed');
+  const player = await getActivePlayer().catch(()=>null);
+  if(!player || !player.device){
+    toast('Start playback on a Spotify device first (Premium)');
+    return;
   }
-}
-
-function playerPrev(){ playerCommand('previous', 'POST'); }
-
-function playerNext(){ playerCommand('next', 'POST'); }
-
-function playerToggle(){
-  const playing = !!(npLast && npLast.is_playing);
+  const playing = !!player.is_playing;
   setPlayPauseIcon(!playing);
   if(npLast) npLast.is_playing = !playing;
-  playerCommand(playing ? 'pause' : 'play', 'PUT');
+  const ok = await playerCommand(playing ? 'pause' : 'play', 'PUT', player.device.id);
+  if(!ok){
+    setPlayPauseIcon(playing);
+    if(npLast) npLast.is_playing = playing;
+  }
 }
 
 async function fetchNowPlaying(){
