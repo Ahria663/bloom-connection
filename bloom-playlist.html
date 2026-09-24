@@ -79,10 +79,25 @@
         .remove-btn:hover{background:rgba(224,96,122,.12);color:var(--rose-deep);border-color:rgba(224,96,122,.35);}
  
         /* FABs */
-        .fab-qr{position:fixed;bottom:24px;left:24px;z-index:50;background:var(--glass);backdrop-filter:blur(16px);border:1.5px solid var(--glass-border);border-radius:18px;padding:11px 18px;cursor:pointer;display:flex;align-items:center;gap:8px;box-shadow:0 4px 24px rgba(244,160,176,.25);transition:all .2s;font-family:-apple-system,sans-serif;font-size:12px;font-weight:500;color:var(--text-mid);}
+        .fab-qr{background:var(--glass);backdrop-filter:blur(16px);border:1.5px solid var(--glass-border);border-radius:18px;padding:11px 18px;cursor:pointer;display:flex;align-items:center;gap:8px;box-shadow:0 4px 24px rgba(244,160,176,.25);transition:all .2s;font-family:-apple-system,sans-serif;font-size:12px;font-weight:500;color:var(--text-mid);}
         .fab-qr:hover{box-shadow:0 8px 32px rgba(244,160,176,.4);}
         .fab-add{position:fixed;bottom:24px;right:24px;z-index:50;background:linear-gradient(135deg,var(--rose),var(--rose-deep));border:none;border-radius:20px;padding:14px 24px;cursor:pointer;display:flex;align-items:center;gap:8px;color:#fff;font-family:-apple-system,sans-serif;font-weight:600;font-size:14px;box-shadow:0 8px 28px rgba(212,90,110,.38);transition:all .2s;}
         .fab-add:hover{transform:scale(1.04);}
+
+        /* Session QR — pinned to the corner of this page, not a modal or side panel */
+        .session-qr{display:none;position:fixed;bottom:24px;left:24px;z-index:50;text-align:center;animation:fadeUp .45s ease both;cursor:pointer;}
+        .session-qr.is-on{display:block;}
+        .session-qr-card{background:var(--glass);backdrop-filter:blur(16px);border:1.5px solid var(--glass-border);border-radius:18px;padding:10px;box-shadow:0 6px 24px rgba(244,160,176,.28);transition:box-shadow .2s,transform .2s;}
+        .session-qr:hover .session-qr-card{box-shadow:0 8px 32px rgba(244,160,176,.4);transform:translateY(-1px);}
+        .session-qr-mount{width:120px;height:120px;border-radius:12px;overflow:hidden;background:var(--blush);}
+        .session-qr-mount canvas,.session-qr-mount img{display:block;width:120px;height:120px;border-radius:12px;}
+        .session-qr-label{margin-top:6px;font-family:-apple-system,sans-serif;font-size:10px;font-weight:500;letter-spacing:.35px;color:var(--text-soft);}
+        .session-qr.is-pulse .session-qr-card{animation:qrPulse .7s ease;}
+        @keyframes qrPulse{0%,100%{box-shadow:0 6px 24px rgba(244,160,176,.28);}40%{box-shadow:0 0 0 6px rgba(244,160,176,.35),0 8px 32px rgba(244,160,176,.4);}}
+        @media (max-width:560px){
+            .session-qr{bottom:88px;left:12px;}
+            .session-qr-mount,.session-qr-mount canvas,.session-qr-mount img{width:96px;height:96px;}
+        }
  
         /* modal overlay */
         .overlay{position:fixed;inset:0;background:rgba(45,26,34,.45);backdrop-filter:blur(8px);z-index:100;display:flex;align-items:center;justify-content:center;animation:fadeIn .25s ease;}
@@ -210,7 +225,9 @@
  
     <!-- SPOTIFY CONNECT BANNER -->
     <div class="connect-banner" id="connectBanner">
-        <div class="connect-text"><strong>Connect Spotify</strong><br>to add songs to your real queue</div>
+        <div class="connect-text"><strong>Connect Spotify</strong><br>to add songs to your real queue
+            <div id="redirectHint" class="spotify-note" style="margin-top:8px;font-style:normal;display:none;"></div>
+        </div>
         <button class="spotify-connect font-sans" style="margin:0;padding:10px 18px;font-size:13px;" onclick="connectSpotify()">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
             Connect
@@ -236,16 +253,6 @@
 </div>
 
 <!-- FABs -->
-<button class="fab-qr font-sans" onclick="openQR()">
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--rose-deep)" stroke-width="2.2" stroke-linecap="round">
-        <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/>
-        <rect x="14" y="14" width="2.5" height="2.5" rx=".5" fill="var(--rose-deep)" stroke="none"/>
-        <rect x="18.5" y="14" width="2.5" height="2.5" rx=".5" fill="var(--rose-deep)" stroke="none"/>
-        <rect x="14" y="18.5" width="2.5" height="2.5" rx=".5" fill="var(--rose-deep)" stroke="none"/>
-        <rect x="18.5" y="18.5" width="2.5" height="2.5" rx=".5" fill="var(--rose-deep)" stroke="none"/>
-    </svg>
-    Invite Friends
-</button>
 <button class="fab-add font-sans" onclick="openAdd()">
     <span style="font-size:20px;line-height:1;">+</span>
     Add Song
@@ -260,8 +267,16 @@
     let toastTimer = null;
  
     const CLIENT_ID = 'd3867244b6a646c490301a91fa564c11'; // replace with yours
-    const REDIRECT = window.location.href.split('?')[0].split('#')[0];
     const SCOPES = 'user-read-playback-state user-modify-playback-state user-read-currently-playing';
+
+    // Spotify requires an exact Redirect URI match, including trailing slash.
+    // Always use origin + '/' so / and /bloom-playlist.html share one allowlisted URI.
+    function getRedirectUri() {
+        const stored = sessionStorage.getItem('spotify_redirect_uri');
+        if (stored) return stored;
+        return window.location.origin.replace(/\/$/, '') + '/';
+    }
+    const REDIRECT = getRedirectUri();
  
     function generateRandomString(len) {
         const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -311,7 +326,7 @@
         const body = new URLSearchParams({
             grant_type: 'authorization_code',
             code: code,
-            redirect_uri: REDIRECT,
+            redirect_uri: getRedirectUri(),
             client_id: id,
             code_verifier: verifier,
         });
@@ -384,11 +399,13 @@
         const challenge = await sha256base64url(verifier);
         const state = generateRandomString(16);
         sessionStorage.setItem('spotify_oauth_state', state);
+        const redirectUri = window.location.origin.replace(/\/$/, '') + '/';
+        sessionStorage.setItem('spotify_redirect_uri', redirectUri);
         const q = new URLSearchParams({
             response_type: 'code',
             client_id: id,
             scope: SCOPES,
-            redirect_uri: REDIRECT,
+            redirect_uri: redirectUri,
             state: state,
             code_challenge_method: 'S256',
             code_challenge: challenge,
@@ -479,7 +496,7 @@
     }
  
     function showSetupModal(){
-        const pageUrl = window.location.href.split('?')[0].split('#')[0];
+        const pageUrl = getRedirectUri();
         document.getElementById('modals').innerHTML = `
     <div class="overlay" onclick="closeIfBackdrop(event,'setup-overlay')" id="setup-overlay">
       <div class="modal-card" style="max-width:370px;text-align:left;">
@@ -529,6 +546,14 @@ function render(){
   // hide banner if connected
   const banner = document.getElementById('connectBanner');
   if(banner) banner.style.display = spotifyToken ? 'none' : '';
+  const hint = document.getElementById('redirectHint');
+  if (hint && !spotifyToken) {
+    const host = location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1') {
+      hint.style.display = 'block';
+      hint.innerHTML = 'Safari login needs this exact Redirect URI in your Spotify app:<br><code style="color:var(--rose-deep);">' + getRedirectUri() + '</code>';
+    }
+  }
 }
  
 function renderHeader(){
@@ -536,7 +561,7 @@ function renderHeader(){
   if(!el) return;
   if(spotifyToken){
     const sessionBtn = bloomSessionId
-        ? `<button class="icon-btn" onclick="openQR()" title="Invite friends">⊞</button>`
+        ? `<button class="icon-btn" onclick="openQR()" title="Show session QR">⊞</button>`
         : `<button class="fab-qr font-sans" style="position:relative;bottom:auto;left:auto;padding:8px 14px;font-size:12px;" onclick="startSession()">🌸 Start Session</button>`;
     el.innerHTML = `
         <div class="spotify-badge font-sans">
@@ -544,7 +569,7 @@ function renderHeader(){
     </div>
         ${sessionBtn}`;
   } else {
-    el.innerHTML = `<button class="icon-btn" onclick="openQR()" title="Invite friends">⊞</button>`;
+    el.innerHTML = `<button class="icon-btn" onclick="openQR()" title="Show session QR">⊞</button>`;
   }
 }
  
@@ -1191,167 +1216,88 @@ async function doSearch(q){
         return emojis[Math.floor(Math.random()*emojis.length)];
     }
  
-    async function buildInviteUrl(){
-        const spotifyOnly = sessionStorage.getItem('bloom_qr_spotify_only')?.trim();
-        if(spotifyOnly && (/^https:\/\/(open\.)?spotify\.com\//i.test(spotifyOnly) || /^spotify:[a-z]+:/i.test(spotifyOnly))){
-            return { url: spotifyOnly, usedLan: false, mode: 'spotify' };
+    async function resolveGuestOrigin(){
+        if (typeof window.__BLOOM_LAN_ORIGIN__ === 'string' && /^https?:\/\//i.test(window.__BLOOM_LAN_ORIGIN__)) {
+            return window.__BLOOM_LAN_ORIGIN__.replace(/\/$/, '');
         }
-        const bloomPublic = sessionStorage.getItem('bloom_qr_invite_url')?.trim();
-        if(bloomPublic && /^https:\/\//i.test(bloomPublic)){
-            try{
-                const u = new URL(bloomPublic);
-                u.searchParams.set('join', 'bloom');
-                u.hash = '';
-                return { url: u.toString(), usedLan: false, mode: 'bloom-public' };
-            } catch(e){}
-        }
-        let origin = window.location.origin;
-        let usedLan = false;
-        const injected = typeof window.__BLOOM_LAN_ORIGIN__ === 'string'
-            && /^https?:\/\//i.test(window.__BLOOM_LAN_ORIGIN__);
-        if(injected){
-            origin = window.__BLOOM_LAN_ORIGIN__;
-            usedLan = true;
-        } else {
-            try{
+        const host = window.location.hostname;
+        if (['localhost', '127.0.0.1', ''].includes(host)) {
+            try {
                 const r = await fetch(new URL('/__bloom/lan.json', window.location.origin), { cache: 'no-store' });
-                if(r.ok){
+                if (r.ok) {
                     const j = await r.json();
-                    if(j.origin && /^https?:\/\//i.test(j.origin)){
-                        origin = j.origin;
-                        usedLan = true;
-                    }
+                    if (j.origin && /^https?:\/\//i.test(j.origin)) return String(j.origin).replace(/\/$/, '');
                 }
-            } catch(e){}
+            } catch (e) {}
         }
-        const u = new URL(window.location.pathname + window.location.search, origin);
-        u.searchParams.set('join', 'bloom');
-        u.hash = '';
-        return { url: u.toString(), usedLan, mode: 'lan' };
+        return window.location.origin;
     }
- 
-    function setQrHint(el, url, mode, usedLan){
-        if(!el) return;
-        if(mode === 'spotify'){
-            el.innerHTML = 'QR opens <strong>Spotify</strong> only — no Bloom or Wi‑Fi needed. They add to <em>their</em> queue in the app (⋯ → Add to queue). Spotify does not offer a link that adds to <em>your</em> queue on their phone.';
-            return;
-        }
-        if(mode === 'bloom-public'){
-            el.innerHTML = 'QR uses your <strong>public https</strong> link — works off Wi‑Fi. Same Spotify login rules as on your computer.<br><code style="font-size:10px;word-break:break-all;display:block;margin-top:6px;font-style:normal;color:var(--text-mid);">' + esc(url) + '</code>';
-            return;
-        }
-        if(usedLan){
-            el.innerHTML = 'QR uses your Wi‑Fi address (same network only):<br><code style="font-size:10px;word-break:break-all;display:block;margin-top:6px;font-style:normal;color:var(--text-mid);">' + esc(url) + '</code>';
-            return;
-        }
-        if(['localhost','127.0.0.1',''].includes(window.location.hostname)){
-            el.innerHTML = 'Use <strong>Public Bloom URL</strong> or <strong>Spotify link</strong> above to avoid Wi‑Fi, or run <code style="font-size:10px;">npm start</code> for LAN. Turn Wi‑Fi on for auto LAN detection.';
-            return;
-        }
-        el.textContent = 'QR uses this page’s URL. Add it to Spotify Redirect URIs if guests log in here.';
+
+    async function guestInviteUrl(sid){
+        const origin = await resolveGuestOrigin();
+        return origin + '/guest.html?session=' + encodeURIComponent(sid);
     }
- 
-    function applyQrSettings(){
-        const bloom = document.getElementById('qrBloomUrl')?.value?.trim() || '';
-        const sp = document.getElementById('qrSpotifyUrl')?.value?.trim() || '';
-        if(sp){
-            if(!/^https:\/\/(open\.)?spotify\.com\//i.test(sp) && !/^spotify:[a-z]+:/i.test(sp)){
-                toast('Spotify field: use https://open.spotify.com/... or spotify:track:...');
-                return;
-            }
-            sessionStorage.setItem('bloom_qr_spotify_only', sp);
-            sessionStorage.removeItem('bloom_qr_invite_url');
-        } else if(bloom){
-            if(!/^https:\/\//i.test(bloom)){
-                toast('Bloom URL must start with https://');
-                return;
-            }
-            try{ new URL(bloom); } catch(e){ toast('That URL does not look valid'); return; }
-            sessionStorage.setItem('bloom_qr_invite_url', bloom);
-            sessionStorage.removeItem('bloom_qr_spotify_only');
-        } else {
-            sessionStorage.removeItem('bloom_qr_invite_url');
-            sessionStorage.removeItem('bloom_qr_spotify_only');
-        }
-        toast('QR updated');
-        refreshQrInModal();
-    }
- 
-    function refreshQrInModal(){
-        buildInviteUrl().then(({ url, usedLan, mode }) => {
-            const hint = document.getElementById('qrLanHint');
-            setQrHint(hint, url, mode, usedLan);
-            return loadQRScript().then(() => {
-                const mount = document.getElementById('qrMount');
-                if(mount) paintQRCode(mount, url);
-            });
-        });
-    }
- 
+
     function loadQRScript(){
         return new Promise((res, rej) => {
-            if(typeof QRCode !== 'undefined') return res();
+            if (typeof qrcode === 'function') return res();
             const s = document.createElement('script');
-            s.src = 'https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js';
-            s.onload = () => res();
+            s.src = '/vendor/qrcode.min.js';
+            s.onload = () => (typeof qrcode === 'function' ? res() : rej(new Error('qr')));
             s.onerror = () => rej(new Error('qr'));
             document.head.appendChild(s);
         });
     }
- 
-    function paintQRCode(mount, text){
+
+    function paintQRCode(mount, text, width){
         mount.textContent = '';
+        const qr = qrcode(0, 'M');
+        qr.addData(text);
+        qr.make();
+        const cells = qr.getModuleCount();
+        const size = width || 120;
         const canvas = document.createElement('canvas');
-        QRCode.toCanvas(canvas, text, {
-            width: 200,
-            margin: 2,
-            color: { dark: '#2d1a22', light: '#fdf0f3' },
-        }, (err) => {
-            if(err){
-                mount.innerHTML = '<p class="qr-fallback">Could not build QR. Copy the link from your browser bar instead.</p>';
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('canvas');
+        const scale = size / cells;
+        ctx.fillStyle = '#fdf0f3';
+        ctx.fillRect(0, 0, size, size);
+        ctx.fillStyle = '#2d1a22';
+        for (let r = 0; r < cells; r++) {
+            for (let c = 0; c < cells; c++) {
+                if (qr.isDark(r, c)) {
+                    ctx.fillRect(Math.floor(c * scale), Math.floor(r * scale), Math.ceil(scale), Math.ceil(scale));
+                }
+            }
+        }
+        mount.appendChild(canvas);
+    }
+
+    function pulseSessionQR(){
+        const wrap = document.getElementById('persistentQR');
+        if (!wrap) return;
+        wrap.classList.remove('is-pulse');
+        void wrap.offsetWidth;
+        wrap.classList.add('is-pulse');
+        setTimeout(() => wrap.classList.remove('is-pulse'), 800);
+    }
+
+    async function openQR(){
+        let sid = bloomSessionId || sessionStorage.getItem('bloom_session_id');
+        if (!sid) {
+            if (spotifyToken) {
+                await startSession();
                 return;
             }
-            mount.appendChild(canvas);
-        });
-    }
- 
-    // ── QR Modal ───────────────────────────────────────────
-    const BLOOM_INVITE_URL = 'https://bloom-connection-vznr.vercel.app';
- 
-    const BLOOM_QR_IMG = "data:image/png;base64,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";
- 
-    function openQR(){
-        const m = document.getElementById('modals');
-        m.innerHTML = `
-    <div class="overlay" onclick="closeIfBackdrop(event,'overlay-qr')" id="overlay-qr">
-      <div class="modal-card" onclick="event.stopPropagation()" style="padding:36px 32px 28px;">
-        <div class="modal-title font-serif" style="margin-bottom:4px;">Invite Friends 🌸</div>
-        <div class="modal-sub" style="margin-bottom:18px;">Scan to add your song to the playlist</div>
-        <div class="qr-box" style="display:inline-block;margin:0 auto 18px;">
-          <img src="${BLOOM_QR_IMG}" alt="QR code" id="qrModalImg" style="display:block;width:200px;height:200px;border-radius:12px;" />
-        </div>
-        <div style="display:inline-flex;align-items:center;gap:6px;background:var(--rose-light);border:1px solid rgba(217,92,116,0.2);border-radius:20px;padding:6px 14px;font-family:-apple-system,sans-serif;font-size:11px;color:var(--rose-deep);font-weight:500;margin-bottom:20px;">
-          🔗 bloom-connection-vznr.vercel.app
-        </div>
-        <button type="button" class="close-btn font-sans" style="width:100%;" onclick="closeModals()">Done</button>
-      </div>
-    </div>`;
-        // Read session ID fresh from sessionStorage every time
-        const img = document.getElementById('qrModalImg');
-        const sid = bloomSessionId || sessionStorage.getItem('bloom_session_id');
-        if (img && sid) {
-            const guestUrl = `https://bloom-connection-vznr.vercel.app/guest.html?session=${sid}`;
-            img.src = `https://quickchart.io/qr?text=${encodeURIComponent(guestUrl)}&size=300&margin=3&dark=2d1a22&light=fdf0f3`;
-            // Also show the URL so host can share it manually
-            const urlPill = document.querySelector('#overlay-qr .modal-card div[style*="rose-light"]');
-            if (urlPill) urlPill.textContent = '🔗 Scan or share: ...guest.html?session=' + sid.slice(0,6) + '...';
-        } else if (img) {
-            img.src = '';
-            img.alt = 'Start a session first — click the 🌸 button';
-            img.style.cssText = 'display:flex;align-items:center;justify-content:center;width:200px;height:80px;font-size:13px;color:var(--text-soft);font-family:-apple-system,sans-serif;text-align:center;';
+            toast('Connect Spotify to start a session');
+            return;
         }
+        await showPersistentQR(sid);
+        pulseSessionQR();
     }
- 
+
     async function startSession() {
         toast('Starting session…');
         const rt = sessionStorage.getItem('spotify_refresh_token');
@@ -1359,20 +1305,31 @@ async function doSearch(q){
         renderHeader();
     }
 
-    function showPersistentQR(sid) {
+    async function showPersistentQR(sid) {
         if (!sid) return;
         const wrap = document.getElementById('persistentQR');
-        const img  = document.getElementById('persistentQRImg');
-        if (!wrap || !img) return;
-        const guestUrl = 'https://bloom-connection-vznr.vercel.app/guest.html?session=' + sid;
-        // Use QR modal's dynamic src (same as Invite Friends button)
-        img.src = 'https://quickchart.io/qr?text=' + encodeURIComponent(guestUrl) + '&size=300&margin=3&dark=2d1a22&light=fdf0f3';
-        img.onerror = function() {
-            // Fallback to the static embedded QR if quickchart fails
-            img.src = BLOOM_QR_IMG;
+        const mount = document.getElementById('persistentQRMount');
+        if (!wrap || !mount) return;
+        const guestUrl = await guestInviteUrl(sid);
+        wrap.classList.add('is-on');
+        wrap.title = 'Scan to join · click to copy invite link';
+        wrap.onclick = function() {
+            if (navigator.clipboard && guestUrl) {
+                navigator.clipboard.writeText(guestUrl).then(() => toast('Invite link copied')).catch(() => {});
+            }
         };
-        wrap.style.display = 'block';
-        wrap.style.opacity = '1';
+        try {
+            await loadQRScript();
+            await paintQRCode(mount, guestUrl, 120);
+        } catch (e) {
+            mount.textContent = '';
+            const img = document.createElement('img');
+            img.alt = 'Scan to add a song';
+            img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=120x120&margin=1&data=' + encodeURIComponent(guestUrl);
+            mount.appendChild(img);
+        }
+        const label = document.getElementById('persistentQRLabel');
+        if (label) label.textContent = 'scan to add a song';
     }
 
     function closeModals(){ document.getElementById('modals').innerHTML=''; }
@@ -1541,12 +1498,12 @@ async function doSearch(q){
 
     })();
 </script>
-<!-- Persistent QR - fixed above Add Song button -->
-<div id="persistentQR" style="display:none;position:fixed;bottom:90px;right:24px;z-index:9999;opacity:0;transition:opacity .5s;text-align:center;">
-    <div style="background:white;border-radius:16px;padding:12px;border:1px solid rgba(244,160,176,.4);box-shadow:0 6px 24px rgba(244,160,176,.3);">
-        <img id="persistentQRImg" src="" alt="Scan to add a song" style="display:block;width:140px;height:140px;border-radius:10px;" />
+<!-- Session QR — corner of the host page, unique per session -->
+<div id="persistentQR" class="session-qr">
+    <div class="session-qr-card">
+        <div class="session-qr-mount" id="persistentQRMount" aria-hidden="true"></div>
     </div>
-    <div style="font-family:-apple-system,sans-serif;font-size:10px;color:var(--text-soft);margin-top:6px;letter-spacing:.4px;">scan to add a song</div>
+    <div class="session-qr-label font-sans" id="persistentQRLabel">scan to add a song</div>
 </div>
 </body>
 </html>
