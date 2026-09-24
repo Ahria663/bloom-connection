@@ -268,15 +268,12 @@
  
     const CLIENT_ID = 'd3867244b6a646c490301a91fa564c11'; // replace with yours
     const SCOPES = 'user-read-playback-state user-modify-playback-state user-read-currently-playing';
+    // One allowlisted URI for local + Vercel. Must match Spotify Dashboard exactly.
+    const SPOTIFY_REDIRECT = 'https://bloom-connection-vznr.vercel.app/api/auth-callback';
 
-    // Spotify requires an exact Redirect URI match, including trailing slash.
-    // Always use origin + '/' so / and /bloom-playlist.html share one allowlisted URI.
     function getRedirectUri() {
-        const stored = sessionStorage.getItem('spotify_redirect_uri');
-        if (stored) return stored;
-        return window.location.origin.replace(/\/$/, '') + '/';
+        return SPOTIFY_REDIRECT;
     }
-    const REDIRECT = getRedirectUri();
  
     function generateRandomString(len) {
         const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -390,26 +387,17 @@
         return r;
     }
     async function connectSpotifyWithId(id) {
-        if (!window.crypto || !window.crypto.subtle) {
-            toast('Open this page over https:// or http://localhost — Spotify login needs a secure context');
-            return;
-        }
-        const verifier = generateRandomString(64);
-        sessionStorage.setItem('spotify_pkce_verifier', verifier);
-        const challenge = await sha256base64url(verifier);
-        const state = generateRandomString(16);
-        sessionStorage.setItem('spotify_oauth_state', state);
-        const redirectUri = window.location.origin.replace(/\/$/, '') + '/';
-        sessionStorage.setItem('spotify_redirect_uri', redirectUri);
+        const nonce = generateRandomString(16);
+        sessionStorage.setItem('spotify_oauth_state', nonce);
+        const returnTo = window.location.origin.replace(/\/$/, '') + '/';
+        const packed = btoa(returnTo).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
         const q = new URLSearchParams({
             response_type: 'code',
             client_id: id,
             scope: SCOPES,
-            redirect_uri: redirectUri,
-            state: state,
-            code_challenge_method: 'S256',
-            code_challenge: challenge,
-            show_dialog: 'true',  // always show login so we always get a refresh token
+            redirect_uri: SPOTIFY_REDIRECT,
+            state: nonce + '.' + packed,
+            show_dialog: 'true',
         });
         window.location.href = 'https://accounts.spotify.com/authorize?' + q.toString();
     }
@@ -490,9 +478,8 @@
     };
  
     async function connectSpotify(){
-        const id = sessionStorage.getItem('spotify_client_id') || window._clientId || CLIENT_ID;
-        if(!id || id === 'YOUR_SPOTIFY_CLIENT_ID'){ showSetupModal(); return; }
-        await connectSpotifyWithId(id);
+        if(!CLIENT_ID || CLIENT_ID === 'YOUR_SPOTIFY_CLIENT_ID'){ showSetupModal(); return; }
+        await connectSpotifyWithId(CLIENT_ID);
     }
  
     function showSetupModal(){
@@ -548,11 +535,8 @@ function render(){
   if(banner) banner.style.display = spotifyToken ? 'none' : '';
   const hint = document.getElementById('redirectHint');
   if (hint && !spotifyToken) {
-    const host = location.hostname;
-    if (host === 'localhost' || host === '127.0.0.1') {
-      hint.style.display = 'block';
-      hint.innerHTML = 'Safari login needs this exact Redirect URI in your Spotify app:<br><code style="color:var(--rose-deep);">' + getRedirectUri() + '</code>';
-    }
+    hint.style.display = 'block';
+    hint.innerHTML = 'Spotify Redirect URI (exact match):<br><code style="color:var(--rose-deep);word-break:break-all;">' + SPOTIFY_REDIRECT + '</code>';
   }
 }
  
@@ -1476,6 +1460,8 @@ async function doSearch(q){
             if(t){
                 spotifyToken = t;
                 sessionStorage.setItem('spotify_access_token', t);
+                const rt = p.get('refresh_token');
+                if (rt) sessionStorage.setItem('spotify_refresh_token', rt);
                 cleanOAuthUrl();
             }
         }
