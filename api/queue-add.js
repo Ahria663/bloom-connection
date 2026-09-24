@@ -61,13 +61,13 @@ module.exports = async function(req, res) {
 
   let refreshToken = process.env.SPOTIFY_REFRESH_TOKEN;
   try {
-    refreshToken = await getSessionToken(sessionId);
+    const sessionToken = await getSessionToken(sessionId);
+    if (sessionToken) refreshToken = sessionToken;
   } catch(e) {
     console.log('Session lookup failed, using default token:', e.message);
   }
 
-  const errors = [];
-
+  let stored = false;
   try {
     const sbRes = await fetch(SUPABASE_URL + '/rest/v1/bloom_queue', {
       method: 'POST',
@@ -77,16 +77,36 @@ module.exports = async function(req, res) {
       }),
       body: JSON.stringify({ uri, title, artist, art, album, dur, added_by: addedBy, votes: 0, session_id: sessionId })
     });
-    if (!sbRes.ok) {
-      const txt = await sbRes.text();
-      console.error('Supabase error:', txt);
-      errors.push('Supabase: ' + txt);
-    }
-  } catch(e) { errors.push('Supabase: ' + e.message); }
+    stored = sbRes.ok;
+    if (!sbRes.ok) console.error('Supabase error:', await sbRes.text());
+  } catch(e) {
+    console.error('Supabase fetch failed:', e.message);
+  }
 
-  // Spotify queuing is handled by the host's browser via Supabase realtime INSERT event.
-  // The host app (bloom-playlist.html) listens for INSERTs and calls Spotify directly
-  // using the host's live access token — more reliable than server-side token.
-  if (errors.length > 0) return res.status(500).json({ error: errors.join(' | ') });
-  return res.status(200).json({ ok: true });
+  let queued = false;
+  let spotifyError = '';
+  if (refreshToken) {
+    try {
+      const access = await getAccessToken(refreshToken);
+      const qr = await fetch(
+        'https://api.spotify.com/v1/me/player/queue?uri=' + encodeURIComponent(uri),
+        { method: 'POST', headers: { Authorization: 'Bearer ' + access } }
+      );
+      if (qr.status === 204 || qr.ok) {
+        queued = true;
+      } else if (qr.status === 404) {
+        spotifyError = 'Start playback on a Spotify device first (Premium)';
+      } else {
+        const j = await qr.json().catch(() => ({}));
+        spotifyError = j.error?.message || ('Spotify queue failed ' + qr.status);
+      }
+    } catch(e) {
+      spotifyError = e.message;
+    }
+  } else {
+    spotifyError = 'No host Spotify token for this session';
+  }
+
+  if (stored || queued) return res.status(200).json({ ok: true, stored, queued });
+  return res.status(500).json({ error: spotifyError || 'Could not add song' });
 };

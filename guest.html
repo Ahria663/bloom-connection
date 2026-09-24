@@ -265,12 +265,24 @@ let supabaseQueue = [];
 async function fetchQueue() {
   try {
     const sessionFilter = SESSION_ID ? `&session_id=eq.${SESSION_ID}` : '';
-  const r = await fetch(
+    const r = await fetch(
       `${SUPABASE_URL}/rest/v1/${QUEUE_TABLE}?select=*&order=created_at.asc${sessionFilter}`,
       { headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` } }
     );
+    if (r.ok) {
+      const rows = await r.json();
+      if (Array.isArray(rows) && rows.length) {
+        supabaseQueue = rows;
+        renderQueue();
+        return;
+      }
+    }
+  } catch(e) {}
+  try {
+    const r = await fetch(`${API_BASE}/api/queue-list`);
     if (!r.ok) return;
-    supabaseQueue = await r.json();
+    const data = await r.json();
+    supabaseQueue = data.tracks || [];
     renderQueue();
   } catch(e) {}
 }
@@ -440,18 +452,22 @@ async function addSong(song) {
         sessionId: SESSION_ID,
       }),
     });
-    const data = await r.json();
+    const data = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(data.error || 'Failed');
  
-    // Track locally so we can label "you" in the queue
     myAddedUris.add(song.uri);
     localStorage.setItem('bloom_my_uris', JSON.stringify([...myAddedUris]));
+    supabaseQueue = supabaseQueue.concat([{
+      uri: song.uri, title: song.title, artist: song.artist,
+      art: song.art, dur: song.dur, added_by: guestName ? `@${guestName.replace(/^@/, '')}` : 'guest',
+    }]);
+    renderQueue();
  
     toast(`Added "${song.title}" 🌸`);
     closeSheet(null);
-    fetchQueue(); // optimistic refresh
+    fetchQueue();
   } catch(e) {
-    toast('Could not add song — try again');
+    toast(e.message || 'Could not add song — try again');
     if (el) el.classList.remove('adding');
   }
 }
