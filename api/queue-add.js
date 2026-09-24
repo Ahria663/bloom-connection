@@ -1,5 +1,6 @@
 // api/queue-add.js
 const { SUPABASE_URL, supabaseHeaders } = require('./supabase-env');
+const store = require('./session-store');
 const tokenCache = {};
 
 async function getAccessToken(refreshToken) {
@@ -59,13 +60,17 @@ module.exports = async function(req, res) {
   if (!uri || !title) return res.status(400).json({ error: 'Missing uri or title' });
   if (!sessionId) return res.status(400).json({ error: 'Missing sessionId' });
 
-  let refreshToken = process.env.SPOTIFY_REFRESH_TOKEN;
+  const cached = store.get(sessionId);
+  let refreshToken = (cached && cached.refreshToken) || process.env.SPOTIFY_REFRESH_TOKEN;
+  let accessToken = cached && cached.accessToken;
   try {
     const sessionToken = await getSessionToken(sessionId);
     if (sessionToken) refreshToken = sessionToken;
   } catch(e) {
-    console.log('Session lookup failed, using default token:', e.message);
+    console.log('Session lookup failed, using cached/default token:', e.message);
   }
+
+  store.addTrack(sessionId, { uri, title, artist, art, album, dur, added_by: addedBy });
 
   let stored = false;
   try {
@@ -85,9 +90,10 @@ module.exports = async function(req, res) {
 
   let queued = false;
   let spotifyError = '';
-  if (refreshToken) {
-    try {
-      const access = await getAccessToken(refreshToken);
+  try {
+    let access = accessToken;
+    if (!access && refreshToken) access = await getAccessToken(refreshToken);
+    if (access) {
       const qr = await fetch(
         'https://api.spotify.com/v1/me/player/queue?uri=' + encodeURIComponent(uri),
         { method: 'POST', headers: { Authorization: 'Bearer ' + access } }
@@ -100,13 +106,13 @@ module.exports = async function(req, res) {
         const j = await qr.json().catch(() => ({}));
         spotifyError = j.error?.message || ('Spotify queue failed ' + qr.status);
       }
-    } catch(e) {
-      spotifyError = e.message;
+    } else {
+      spotifyError = 'Waiting for host to sync this session';
     }
-  } else {
-    spotifyError = 'No host Spotify token for this session';
+  } catch(e) {
+    spotifyError = e.message;
   }
 
-  if (stored || queued) return res.status(200).json({ ok: true, stored, queued });
-  return res.status(500).json({ error: spotifyError || 'Could not add song' });
+  // Memory store always kept the track so the host/guest UIs can show it.
+  return res.status(200).json({ ok: true, stored: true, queued, warning: queued ? '' : spotifyError });
 };

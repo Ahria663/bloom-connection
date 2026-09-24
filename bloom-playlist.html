@@ -91,7 +91,7 @@
         .fab-add{position:fixed;bottom:24px;right:24px;z-index:50;background:var(--paper);border:3px solid var(--ink);border-radius:0;padding:12px 18px;cursor:pointer;display:none;align-items:center;gap:8px;color:var(--ink);font-family:inherit;font-weight:700;font-size:13px;box-shadow:5px 5px 0 var(--pink);text-transform:uppercase;}
         .queue-add{background:none;border:0;color:var(--blue);font:inherit;cursor:pointer;font-weight:700;text-transform:uppercase;}
 
-        .session-qr{display:none;position:fixed;bottom:48px;right:56px;left:auto;z-index:60;text-align:left;cursor:pointer;}
+        .session-qr{display:none;position:fixed;bottom:48px;left:56px;right:auto;z-index:60;text-align:left;cursor:pointer;}
         .session-qr.is-on{display:flex;align-items:center;gap:16px;}
         .session-qr-card{background:#fff;border:3px solid var(--ink);border-radius:0;padding:16px 16px 12px;box-shadow:none;position:relative;transform:rotate(3deg);}
         .session-qr-card::after{content:'';position:absolute;left:40%;top:-14px;width:90px;height:24px;background:var(--blue);opacity:.75;transform:rotate(-4deg);}
@@ -175,9 +175,11 @@
             .header{flex-wrap:wrap;}
             .zine-main,.now-playing{grid-template-columns:1fr;display:flex;flex-direction:column;}
             .np-art-wrap{width:min(280px,80vw);}
-            .session-qr{right:16px;bottom:16px;}
+            .session-qr{left:16px;right:auto;bottom:16px;}
             .session-qr-mount,.session-qr-mount canvas,.session-qr-mount img{width:96px;height:96px;}
             .session-qr-label{font-size:16px;max-width:90px;}
+            body.lyrics-mode .session-qr,
+            .session-qr.is-lyrics{left:auto;right:16px;bottom:16px;}
             .split-lyrics-panel{padding:18px 16px 110px;}
             .lyrics-scroll{padding-right:0;}
             .lyrics-top{flex-wrap:wrap;}
@@ -1238,6 +1240,7 @@ async function fetchNowPlaying(){
     };
     applySpotifyTrackToUI(data.item, !!data.is_playing);
     tickNowPlayingFromCache();
+    syncSessionToServer();
   } catch(e){}
 }
  
@@ -1497,6 +1500,64 @@ async function doSearch(q){
         localStorage.setItem('bloom_session_id', bloomSessionId);
     }
     let guestQueueItems = [];
+    let sessionSyncTimer = null;
+    const hostPushedUris = new Set();
+
+    function snapshotNowPlaying() {
+      const title = (document.getElementById('npTitle') || {}).textContent || '';
+      const artist = (document.getElementById('npArtist') || {}).textContent || '';
+      const img = document.getElementById('npArt');
+      let progress_ms = 0, duration_ms = 0, playing = false, uri = nowPlayingTrackUri || '';
+      if (npLast && npLast.item) {
+        progress_ms = npLast.progress_ms || 0;
+        if (npLast.is_playing) progress_ms += Date.now() - (npLast.fetchedAt || Date.now());
+        duration_ms = npLast.duration_ms || 0;
+        playing = !!npLast.is_playing;
+        uri = (npLast.item.uri || uri);
+      }
+      return {
+        playing,
+        title: title === 'Nothing playing yet' || title === 'Nothing playing' ? '' : title,
+        artist,
+        art: (img && img.src && img.style.display !== 'none') ? img.src : '',
+        uri,
+        progress_ms: Math.max(0, progress_ms),
+        duration_ms,
+      };
+    }
+
+    async function syncSessionToServer() {
+      if (!bloomSessionId || !spotifyToken) return;
+      try {
+        const r = await fetch('/api/session-sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId: bloomSessionId,
+            accessToken: spotifyToken,
+            refreshToken: sessionStorage.getItem('spotify_refresh_token') || '',
+            nowPlaying: snapshotNowPlaying(),
+          }),
+        });
+        const data = await r.json().catch(() => ({}));
+        const pending = data.queue || [];
+        for (let i = 0; i < pending.length; i++) {
+          const t = pending[i];
+          if (!t || !t.uri || hostPushedUris.has(t.uri)) continue;
+          hostPushedUris.add(t.uri);
+          spotifyApiFetch(
+            'https://api.spotify.com/v1/me/player/queue?uri=' + encodeURIComponent(t.uri),
+            { method: 'POST' }
+          ).catch(function () {});
+        }
+      } catch (e) {}
+    }
+
+    function startSessionSync() {
+      if (sessionSyncTimer) return;
+      syncSessionToServer();
+      sessionSyncTimer = setInterval(syncSessionToServer, 3000);
+    }
 
     async function createBloomSession(refreshToken) {
         try {
@@ -1522,9 +1583,9 @@ async function doSearch(q){
             localStorage.setItem('bloom_session_id', bloomSessionId);
             toast(data.warning ? 'Session ready — queue sync may be limited' : 'Session ready ✨');
             showPersistentQR(bloomSessionId);
-            // Re-subscribe now that we have a session
             fetchGuestQueue();
             subscribeGuestQueue();
+            startSessionSync();
         } catch(e) {
             toast('Could not start session — check console');
         }
@@ -1656,7 +1717,7 @@ async function doSearch(q){
         if (bloomSessionId) showPersistentQR(bloomSessionId);
         fetchGuestQueue();
         subscribeGuestQueue();
-        // Every 10s, push any Supabase-queued songs to Spotify that may have been missed
+        startSessionSync();
 
     })();
 </script>

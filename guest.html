@@ -291,7 +291,7 @@ async function pollNowPlaying() {
     const r = await fetch(`${API_BASE}/api/now-playing${sessionParam}`);
     if (!r.ok) return;
     const data = await r.json();
-    applyNowPlaying(data);
+    if (data && (data.title || data.artist || data.playing)) applyNowPlaying(data);
   } catch(e) {}
 }
 
@@ -324,7 +324,7 @@ async function fetchQueue() {
     }
   } catch(e) {}
   try {
-    const r = await fetch(`${API_BASE}/api/queue-list`);
+    const r = await fetch(`${API_BASE}/api/queue-list${SESSION_ID ? '?session=' + encodeURIComponent(SESSION_ID) : ''}`);
     if (!r.ok) return;
     const data = await r.json();
     supabaseQueue = data.tracks || [];

@@ -1,5 +1,6 @@
 // api/session-create.js
 const { SUPABASE_URL, supabaseHeaders } = require('./supabase-env');
+const store = require('./session-store');
 
 function generateId() {
     return Math.random().toString(36).slice(2, 9) + Math.random().toString(36).slice(2, 9);
@@ -42,7 +43,12 @@ async function readBody(req) {
   
     const storedToken = refreshToken || process.env.SPOTIFY_REFRESH_TOKEN;
     const sessionId = generateId();
-  
+    store.put(sessionId, {
+      refreshToken: storedToken || '',
+      accessToken: accessToken || '',
+      accessTokenAt: accessToken ? Date.now() : 0,
+    });
+
     try {
       const r = await fetch(SUPABASE_URL + '/rest/v1/bloom_sessions', {
         method: 'POST',
