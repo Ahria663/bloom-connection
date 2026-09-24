@@ -270,6 +270,7 @@
     const SCOPES = 'user-read-playback-state user-modify-playback-state user-read-currently-playing';
     // One allowlisted URI for local + Vercel. Must match Spotify Dashboard exactly.
     const SPOTIFY_REDIRECT = 'https://bloom-connection-vznr.vercel.app/api/auth-callback';
+    const PUBLIC_ORIGIN = 'https://bloom-connection-vznr.vercel.app';
 
     function getRedirectUri() {
         return SPOTIFY_REDIRECT;
@@ -1200,26 +1201,10 @@ async function doSearch(q){
         return emojis[Math.floor(Math.random()*emojis.length)];
     }
  
-    async function resolveGuestOrigin(){
-        if (typeof window.__BLOOM_LAN_ORIGIN__ === 'string' && /^https?:\/\//i.test(window.__BLOOM_LAN_ORIGIN__)) {
-            return window.__BLOOM_LAN_ORIGIN__.replace(/\/$/, '');
-        }
-        const host = window.location.hostname;
-        if (['localhost', '127.0.0.1', ''].includes(host)) {
-            try {
-                const r = await fetch(new URL('/__bloom/lan.json', window.location.origin), { cache: 'no-store' });
-                if (r.ok) {
-                    const j = await r.json();
-                    if (j.origin && /^https?:\/\//i.test(j.origin)) return String(j.origin).replace(/\/$/, '');
-                }
-            } catch (e) {}
-        }
-        return window.location.origin;
-    }
-
-    async function guestInviteUrl(sid){
-        const origin = await resolveGuestOrigin();
-        return origin + '/guest.html?session=' + encodeURIComponent(sid);
+    function guestInviteUrl(sid){
+        // Always the public production guest page — preview *.vercel.app URLs
+        // require Vercel SSO and would force guests to log in.
+        return PUBLIC_ORIGIN + '/guest.html?session=' + encodeURIComponent(sid);
     }
 
     function loadQRScript(){
@@ -1294,7 +1279,7 @@ async function doSearch(q){
         const wrap = document.getElementById('persistentQR');
         const mount = document.getElementById('persistentQRMount');
         if (!wrap || !mount) return;
-        const guestUrl = await guestInviteUrl(sid);
+        const guestUrl = guestInviteUrl(sid);
         wrap.classList.add('is-on');
         wrap.title = 'Scan to join · click to copy invite link';
         wrap.onclick = function() {
