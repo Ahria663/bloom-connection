@@ -91,8 +91,10 @@
         .fab-add{position:fixed;bottom:24px;right:24px;z-index:50;background:var(--paper);border:3px solid var(--ink);border-radius:0;padding:12px 18px;cursor:pointer;display:none;align-items:center;gap:8px;color:var(--ink);font-family:inherit;font-weight:700;font-size:13px;box-shadow:5px 5px 0 var(--pink);text-transform:uppercase;}
         .queue-add{background:none;border:0;color:var(--blue);font:inherit;cursor:pointer;font-weight:700;text-transform:uppercase;}
 
-        .session-qr{display:none;position:fixed;bottom:48px;left:56px;right:auto;z-index:60;text-align:left;cursor:pointer;}
-        .session-qr.is-on{display:flex;align-items:center;gap:16px;}
+        .qr-dock{margin-top:28px;}
+        .qr-dock .session-qr.is-on{position:relative;left:auto;right:auto;bottom:auto;display:flex;align-items:flex-end;gap:16px;}
+        .session-qr{display:none;position:relative;z-index:60;text-align:left;cursor:pointer;}
+        .session-qr.is-on{display:flex;align-items:flex-end;gap:16px;}
         .session-qr-card{background:#fff;border:3px solid var(--ink);border-radius:0;padding:16px 16px 12px;box-shadow:none;position:relative;transform:rotate(3deg);}
         .session-qr-card::after{content:'';position:absolute;left:40%;top:-14px;width:90px;height:24px;background:var(--blue);opacity:.75;transform:rotate(-4deg);}
         .session-qr:hover .session-qr-card{box-shadow:none;transform:rotate(3deg);}
@@ -102,7 +104,7 @@
         .session-qr.is-pulse .session-qr-card{animation:qrPulse .7s ease;}
         @keyframes qrPulse{0%,100%{box-shadow:0 0 0 0 transparent;}40%{box-shadow:8px 8px 0 var(--pink);}}
         body.lyrics-mode .session-qr,
-        .session-qr.is-lyrics{left:auto;right:64px;bottom:56px;flex-direction:column;align-items:center;gap:8px;}
+        .session-qr.is-lyrics{position:fixed;left:auto;right:64px;bottom:120px;flex-direction:column;align-items:center;gap:8px;}
         body.lyrics-mode .session-qr-card{transform:rotate(4deg);padding:16px;}
         body.lyrics-mode .session-qr-card::after{background:var(--pink);opacity:.8;left:30%;transform:rotate(-5deg);}
         body.lyrics-mode .session-qr-mount,body.lyrics-mode .session-qr-mount canvas,body.lyrics-mode .session-qr-mount img{width:150px;height:150px;}
@@ -175,11 +177,10 @@
             .header{flex-wrap:wrap;}
             .zine-main,.now-playing{grid-template-columns:1fr;display:flex;flex-direction:column;}
             .np-art-wrap{width:min(280px,80vw);}
-            .session-qr{left:16px;right:auto;bottom:16px;}
             .session-qr-mount,.session-qr-mount canvas,.session-qr-mount img{width:96px;height:96px;}
             .session-qr-label{font-size:16px;max-width:90px;}
             body.lyrics-mode .session-qr,
-            .session-qr.is-lyrics{left:auto;right:16px;bottom:16px;}
+            .session-qr.is-lyrics{left:auto;right:16px;bottom:100px;}
             .split-lyrics-panel{padding:18px 16px 110px;}
             .lyrics-scroll{padding-right:0;}
             .lyrics-top{flex-wrap:wrap;}
@@ -242,6 +243,7 @@
                     </button>
                     <button class="lyrics-toggle-btn font-sans" onclick="toggleLyrics()" id="lyricsBtn" style="display:none;">Lyrics</button>
                 </div>
+                <div class="qr-dock" id="qrDock"></div>
             </div>
         </div>
 
@@ -288,6 +290,7 @@
 
 <div id="modals"></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/4.3.7/mqtt.min.js"></script>
 <script>
     // ── State ──────────────────────────────────────────────
     let spotifyToken = null;
@@ -673,6 +676,10 @@ function renderQueue(){
     if(el.getAttribute('data-queue-sig') === paintSig) return;
     el.setAttribute('data-queue-sig', paintSig);
     document.getElementById('queueCount').textContent = n ? `${n} trks` : (apiN ? 'all hidden' : '0 trks');
+    if (typeof publishBloomState === 'function') {
+      clearTimeout(window._publishTimer);
+      window._publishTimer = setTimeout(publishBloomState, 200);
+    }
     if(apiN === 0){
       el.innerHTML = '<div class="empty">Nothing queued yet — add a song or keep listening in Spotify.</div>';
       syncLyricsChrome();
@@ -929,8 +936,11 @@ function toggleLyrics(){
 
 function placeSessionQR(lyrics){
   const wrap = document.getElementById('persistentQR');
+  const dock = document.getElementById('qrDock');
   if (!wrap) return;
   wrap.classList.toggle('is-lyrics', !!lyrics);
+  if (lyrics) document.body.appendChild(wrap);
+  else if (dock) dock.appendChild(wrap);
   const label = document.getElementById('persistentQRLabel');
   if (label) label.textContent = lyrics ? 'add a song!' : 'scan me & add a song';
 }
@@ -1241,6 +1251,7 @@ async function fetchNowPlaying(){
     applySpotifyTrackToUI(data.item, !!data.is_playing);
     tickNowPlayingFromCache();
     syncSessionToServer();
+    if (typeof publishBloomState === 'function') publishBloomState();
   } catch(e){}
 }
  
@@ -1557,6 +1568,106 @@ async function doSearch(q){
       if (sessionSyncTimer) return;
       syncSessionToServer();
       sessionSyncTimer = setInterval(syncSessionToServer, 3000);
+      startBloomBus();
+    }
+
+    let bloomBus = null;
+    let guestRequested = [];
+    const BLOOM_MQTT_URLS = [
+      'wss://broker.emqx.io:8084/mqtt',
+      'wss://broker.hivemq.com:8884/mqtt',
+    ];
+
+    function bloomTopic() {
+      return 'bloom/' + bloomSessionId;
+    }
+
+    function guestQueueForBroadcast() {
+      const seen = new Set();
+      const out = [];
+      const vis = spotifyToken ? spotifyVisibleQueue() : [...songs].sort(function(a,b){ return b.votes - a.votes; });
+      vis.concat(guestRequested).forEach(function(s){
+        if (!s || !s.uri || seen.has(s.uri) || s.uri === nowPlayingTrackUri) return;
+        seen.add(s.uri);
+        out.push({
+          uri: s.uri,
+          title: s.title,
+          artist: s.artist || '',
+          art: s.art || '',
+          added_by: s.added_by || s.by || '',
+        });
+      });
+      return out;
+    }
+
+    function publishBloomState() {
+      if (!bloomBus || !bloomBus.connected || !bloomSessionId) return;
+      const payload = JSON.stringify({
+        nowPlaying: snapshotNowPlaying(),
+        queue: guestQueueForBroadcast(),
+      });
+      bloomBus.publish(bloomTopic() + '/state', payload, { retain: true, qos: 0 });
+    }
+
+    function handleGuestAdd(song) {
+      if (!song || !song.uri) return;
+      if (!guestRequested.some(function(s){ return s.uri === song.uri; })) {
+        guestRequested.push({
+          uri: song.uri,
+          title: song.title,
+          artist: song.artist || '',
+          art: song.art || '',
+          added_by: song.addedBy || song.added_by || 'guest',
+        });
+      }
+      if (spotifyToken && !spotifyQueueList.some(function(x){ return x.uri === song.uri; })) {
+        spotifyQueueList.push({
+          uri: song.uri,
+          title: song.title,
+          artist: song.artist || '',
+          art: song.art || '',
+        });
+        lastSpotifyQueueSig = '';
+        renderQueue();
+      }
+      if (spotifyToken) {
+        spotifyApiFetch(
+          'https://api.spotify.com/v1/me/player/queue?uri=' + encodeURIComponent(song.uri),
+          { method: 'POST' }
+        ).then(function(){ setTimeout(fetchSpotifyQueue, 800); }).catch(function(){});
+      }
+      publishBloomState();
+      toast((song.addedBy || 'A guest') + ' added "' + song.title + '"');
+    }
+
+    function startBloomBus() {
+      if (!bloomSessionId || bloomBus || typeof mqtt === 'undefined') return;
+      let urlIndex = 0;
+      function connect() {
+        const url = BLOOM_MQTT_URLS[urlIndex];
+        bloomBus = mqtt.connect(url, {
+          clientId: 'host-' + bloomSessionId.slice(0, 8) + '-' + Math.random().toString(16).slice(2, 8),
+          clean: true,
+          reconnectPeriod: 3000,
+        });
+        bloomBus.on('connect', function(){
+          bloomBus.subscribe(bloomTopic() + '/add');
+          publishBloomState();
+        });
+        bloomBus.on('message', function(topic, payload){
+          if (String(topic).indexOf('/add') === -1) return;
+          try { handleGuestAdd(JSON.parse(payload.toString())); } catch(e) {}
+        });
+        bloomBus.on('error', function(){
+          if (urlIndex < BLOOM_MQTT_URLS.length - 1 && bloomBus) {
+            try { bloomBus.end(true); } catch(e) {}
+            bloomBus = null;
+            urlIndex += 1;
+            connect();
+          }
+        });
+      }
+      connect();
     }
 
     async function createBloomSession(refreshToken) {

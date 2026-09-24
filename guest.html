@@ -167,6 +167,7 @@
 
 <div class="toast" id="toast"></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/4.3.7/mqtt.min.js"></script>
 <script>
 const API_BASE   = 'https://bloom-connection-vznr.vercel.app';
 const SUPABASE_URL  = 'https://wbtbkqczxttkntjzafgq.supabase.co';
@@ -183,6 +184,49 @@ let progressTimer = null;
 let toastTimer = null;
 let searchTimer = null;
 let lastNowPlaying = null;
+let bloomBus = null;
+const BLOOM_MQTT_URLS = [
+  'wss://broker.emqx.io:8084/mqtt',
+  'wss://broker.hivemq.com:8884/mqtt',
+];
+
+function applyBusState(state) {
+  if (!state || typeof state !== 'object') return;
+  if (Array.isArray(state.queue)) {
+    supabaseQueue = state.queue;
+    renderQueue();
+  }
+  if (state.nowPlaying && (state.nowPlaying.title || state.nowPlaying.artist)) {
+    applyNowPlaying(state.nowPlaying);
+  }
+}
+
+function startBloomBus() {
+  if (!SESSION_ID || bloomBus || typeof mqtt === 'undefined') return;
+  let urlIndex = 0;
+  function connect() {
+    bloomBus = mqtt.connect(BLOOM_MQTT_URLS[urlIndex], {
+      clientId: 'guest-' + SESSION_ID.slice(0, 8) + '-' + Math.random().toString(16).slice(2, 8),
+      clean: true,
+      reconnectPeriod: 3000,
+    });
+    bloomBus.on('connect', function(){
+      bloomBus.subscribe('bloom/' + SESSION_ID + '/state');
+    });
+    bloomBus.on('message', function(topic, payload){
+      try { applyBusState(JSON.parse(payload.toString())); } catch(e) {}
+    });
+    bloomBus.on('error', function(){
+      if (urlIndex < BLOOM_MQTT_URLS.length - 1 && bloomBus) {
+        try { bloomBus.end(true); } catch(e) {}
+        bloomBus = null;
+        urlIndex += 1;
+        connect();
+      }
+    });
+  }
+  connect();
+}
 
 function roomCode() {
   return SESSION_ID ? String(SESSION_ID).replace(/[^a-z0-9]/gi,'').slice(0,6).toUpperCase() : '——';
@@ -541,48 +585,64 @@ async function doSearch(q) {
   }
 }
 
+function markSongAdded(song, el) {
+  myAddedUris.add(song.uri);
+  lastPickUri = song.uri;
+  localStorage.setItem('bloom_my_uris', JSON.stringify([...myAddedUris]));
+  localStorage.setItem('bloom_last_pick', lastPickUri);
+  if (!supabaseQueue.some(function(s){ return s.uri === song.uri; })) {
+    supabaseQueue = supabaseQueue.concat([{
+      uri: song.uri, title: song.title, artist: song.artist,
+      art: song.art, dur: song.dur, added_by: guestName ? `@${guestName.replace(/^@/, '')}` : 'guest',
+    }]);
+  }
+  renderQueue();
+  if (el) {
+    el.classList.remove('adding');
+    el.classList.add('added');
+  }
+  updatePickBar();
+}
+
 async function addSong(song) {
   const el = document.getElementById(`ri-${song.id}`);
   if (el) el.classList.add('adding');
+  const addedBy = guestName ? `@${guestName.replace(/^@/, '')}` : 'guest';
+  const payload = {
+    uri: song.uri, title: song.title, artist: song.artist, art: song.art,
+    album: song.album, dur: song.dur, addedBy: addedBy, added_by: addedBy,
+  };
+
+  let sent = false;
+  if (bloomBus && bloomBus.connected) {
+    try {
+      bloomBus.publish('bloom/' + SESSION_ID + '/add', JSON.stringify(payload), { qos: 0 });
+      sent = true;
+    } catch(e) {}
+  }
 
   try {
     const r = await fetch(`${API_BASE}/api/queue-add`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        uri:      song.uri,
-        title:    song.title,
-        artist:   song.artist,
-        art:      song.art,
-        album:    song.album,
-        dur:      song.dur,
-        addedBy:  guestName ? `@${guestName.replace(/^@/, '')}` : 'guest',
-        sessionId: SESSION_ID,
+        uri: song.uri, title: song.title, artist: song.artist, art: song.art,
+        album: song.album, dur: song.dur, addedBy: addedBy, sessionId: SESSION_ID,
       }),
     });
     const data = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(data.error || 'Failed');
-
-    myAddedUris.add(song.uri);
-    lastPickUri = song.uri;
-    localStorage.setItem('bloom_my_uris', JSON.stringify([...myAddedUris]));
-    localStorage.setItem('bloom_last_pick', lastPickUri);
-    supabaseQueue = supabaseQueue.concat([{
-      uri: song.uri, title: song.title, artist: song.artist,
-      art: song.art, dur: song.dur, added_by: guestName ? `@${guestName.replace(/^@/, '')}` : 'guest',
-    }]);
-    renderQueue();
-    if (el) {
-      el.classList.remove('adding');
-      el.classList.add('added');
-    }
-    updatePickBar();
-    toast('Added "' + song.title + '"');
-    fetchQueue();
+    if (r.ok) sent = true;
+    else if (!sent) throw new Error(data.error || 'Failed');
   } catch(e) {
-    toast(e.message || 'Could not add song — try again');
-    if (el) el.classList.remove('adding');
+    if (!sent) {
+      toast(e.message || 'Could not add song — try again');
+      if (el) el.classList.remove('adding');
+      return;
+    }
   }
+
+  markSongAdded(song, el);
+  toast('Added "' + song.title + '"');
 }
 
 (async function init() {
@@ -595,6 +655,7 @@ async function addSong(song) {
     if (air) air.textContent = 'Standby';
     return;
   }
+  startBloomBus();
   await fetchQueue();
   await pollNowPlaying();
   startProgressTick();
